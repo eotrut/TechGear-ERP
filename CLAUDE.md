@@ -68,6 +68,9 @@ npm run db:seed          # deterministic 12 months of demo data
 npm run db:verify        # 54 integrity checks against the seeded data
 npm run db:reset         # drop, re-migrate, re-seed
 npm run db:images        # fetch placeholder product images
+npm test                 # Vitest unit tests
+npm run verify:rbac      # drives a browser through all four roles
+npm run gen:permissions  # regenerate docs/permissions.md from the matrix
 ```
 
 Copy `.env.example` to `.env.local` before first run. Every variable is
@@ -133,6 +136,29 @@ Other standing rules:
   component. Run `npm run check:contrast` after any token change.
 - Load the `dataviz` skill before writing any chart code.
 
+## Authorization
+
+**`src/lib/rbac/matrix.ts` is the only place a permission is granted.** Never
+write a role comparison anywhere else; add a permission and check it.
+
+Three layers, all of which must stay in place:
+
+| Layer        | Where                                            | What it is                                                                                                                                                         |
+| ------------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Route gate   | `src/middleware.ts`                              | Edge, JWT only. Cheap filter on navigation. **Not** the security boundary: the token role can be up to 8 hours stale and it cannot see a just-deactivated account. |
+| Page guard   | `requirePermission()` in `src/lib/rbac/guard.ts` | Re-reads the live user. Renders 403.                                                                                                                               |
+| Action guard | `authorizeAction()` / `authorizeRecord()`        | Re-reads the live user. Throws. **Every server action calls one of these.**                                                                                        |
+
+Server actions are reachable from any route, so middleware does not protect
+them. `authorizeAction` is what does.
+
+Where the matrix says `own`, `scopeFor` returns `"own"` rather than a boolean,
+so the caller has to acknowledge the scope. Use `authorizeRecord(permission,
+ownerId)` when acting on a single record.
+
+`docs/permissions.md` is generated. Run `npm run gen:permissions` after editing
+the matrix, and `npm test` to check the invariants still hold.
+
 ## Database
 
 Prisma 7 changed two things the docs still get wrong in places:
@@ -169,6 +195,13 @@ After changing the seed, always run `npm run db:seed && npm run db:verify`.
   dependency tree. The only offered fix is Next 16, which SPEC fixes us out of.
   It is a build-time dependency processing our own CSS, so it is accepted for
   now and revisited if SPEC's stack is ever unpinned.
+- `experimental.authInterrupts` is on in `next.config.ts`. Without it,
+  `forbidden()` and `unauthorized()` silently do nothing. `app/forbidden.tsx` is
+  a convention file, not a route, so middleware rewrites to the real
+  `app/(auth)/forbidden/page.tsx` instead; both render the same component.
+- Nav items carry Lucide icon components, which cannot cross the server/client
+  boundary. `AppSidebar` therefore takes a `role` and filters on the client.
+  That is cosmetic only; the server enforces the real check.
 - Next's dev file watcher ignores `docs/**` and `.playwright-cli/**`
   (`next.config.ts`). Without that, the screenshot sweep writes into the project
   while the server is serving and the watcher recompiles mid-request, which

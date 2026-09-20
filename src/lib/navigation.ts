@@ -1,3 +1,4 @@
+import type { Role } from "@prisma/client";
 import {
   ArrowLeftRight,
   Boxes,
@@ -24,12 +25,26 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { can } from "@/lib/rbac/can";
+import type { Permission } from "@/lib/rbac/matrix";
+
 export type NavItem = {
   label: string;
   href: string;
   icon: LucideIcon;
   /** Shown in breadcrumbs when the crumb label should differ from the nav label. */
   crumb?: string;
+  /**
+   * Permission required to see this item. Hiding is a convenience only: the
+   * route is gated by middleware and the page re-checks server-side.
+   */
+  permission: Permission;
+  /**
+   * Whether the page behind this item exists yet. Unbuilt modules stay out of
+   * the sidebar so no navigation item leads to a 404. The route rules in
+   * src/lib/rbac/routes.ts are already complete; flip this as each phase lands.
+   */
+  built?: boolean;
 };
 
 export type NavGroup = {
@@ -46,69 +61,127 @@ export type NavGroup = {
 export const navigation: NavGroup[] = [
   {
     label: null,
-    items: [{ label: "Dashboard", href: "/dashboard", icon: LayoutDashboard }],
+    items: [
+      {
+        label: "Dashboard",
+        href: "/dashboard",
+        built: true,
+        icon: LayoutDashboard,
+        permission: "dashboard.view",
+      },
+    ],
   },
   {
     label: "Catalogue",
     items: [
-      { label: "Products", href: "/products", icon: Package },
-      { label: "Categories", href: "/categories", icon: Tags },
-      { label: "Brands", href: "/brands", icon: Store },
+      { label: "Products", href: "/products", icon: Package, permission: "products.view" },
+      { label: "Categories", href: "/categories", icon: Tags, permission: "taxonomy.view" },
+      { label: "Brands", href: "/brands", icon: Store, permission: "taxonomy.view" },
     ],
   },
   {
     label: "Inventory",
     items: [
-      { label: "Stock", href: "/inventory", icon: Boxes },
-      { label: "Alerts", href: "/inventory/alerts", icon: ShieldCheck },
-      { label: "Ledger", href: "/inventory/ledger", icon: ScrollText },
-      { label: "Transfers", href: "/inventory/transfers", icon: ArrowLeftRight },
+      { label: "Stock", href: "/inventory", icon: Boxes, permission: "inventory.viewLevels" },
+      {
+        label: "Alerts",
+        href: "/inventory/alerts",
+        icon: ShieldCheck,
+        permission: "dashboard.viewOpsTiles",
+      },
+      {
+        label: "Ledger",
+        href: "/inventory/ledger",
+        icon: ScrollText,
+        permission: "inventory.viewLedger",
+      },
+      {
+        label: "Transfers",
+        href: "/inventory/transfers",
+        icon: ArrowLeftRight,
+        permission: "inventory.transfer",
+      },
     ],
   },
   {
     label: "Sales",
     items: [
-      { label: "Orders", href: "/orders", icon: ShoppingCart },
-      { label: "Point of sale", href: "/pos", icon: Receipt, crumb: "POS" },
-      { label: "Returns", href: "/returns", icon: RotateCcw },
-      { label: "Warranty", href: "/warranty", icon: ShieldCheck },
-      { label: "Promos", href: "/promos", icon: Ticket },
+      { label: "Orders", href: "/orders", icon: ShoppingCart, permission: "orders.view" },
+      { label: "Point of sale", href: "/pos", icon: Receipt, crumb: "POS", permission: "pos.use" },
+      { label: "Returns", href: "/returns", icon: RotateCcw, permission: "returns.view" },
+      { label: "Warranty", href: "/warranty", icon: ShieldCheck, permission: "warranty.view" },
+      { label: "Promos", href: "/promos", icon: Ticket, permission: "promos.view" },
     ],
   },
   {
     label: "Customers",
     items: [
-      { label: "Directory", href: "/customers", icon: Users },
-      { label: "Leads", href: "/leads", icon: Kanban },
-      { label: "Activities", href: "/activities", icon: ClipboardList },
-      { label: "Tickets", href: "/tickets", icon: LifeBuoy },
+      { label: "Directory", href: "/customers", icon: Users, permission: "customers.view" },
+      { label: "Leads", href: "/leads", icon: Kanban, permission: "leads.view" },
+      {
+        label: "Activities",
+        href: "/activities/mine",
+        icon: ClipboardList,
+        permission: "activities.manageOwn",
+      },
+      { label: "Tickets", href: "/tickets", icon: LifeBuoy, permission: "tickets.view" },
     ],
   },
   {
     label: "Purchasing",
     items: [
-      { label: "Purchase orders", href: "/purchasing", icon: FileText },
-      { label: "Suppliers", href: "/suppliers", icon: Truck },
-      { label: "Bills", href: "/purchasing/bills", icon: Wallet },
+      {
+        label: "Purchase orders",
+        href: "/purchasing",
+        icon: FileText,
+        permission: "purchasing.view",
+      },
+      { label: "Suppliers", href: "/suppliers", icon: Truck, permission: "suppliers.view" },
+      { label: "Bills", href: "/purchasing/bills", icon: Wallet, permission: "bills.view" },
     ],
   },
   {
     label: "Finance",
     items: [
-      { label: "Reports", href: "/reports", icon: ChartColumn },
-      { label: "Expenses", href: "/expenses", icon: Wallet },
+      { label: "Reports", href: "/reports", icon: ChartColumn, permission: "reports.sales" },
+      { label: "Expenses", href: "/expenses", icon: Wallet, permission: "expenses.view" },
     ],
   },
   {
     label: "Admin",
     items: [
-      { label: "Settings", href: "/settings", icon: Settings },
-      { label: "Audit log", href: "/audit", icon: FileClock },
+      {
+        label: "Settings",
+        href: "/settings",
+        built: true,
+        icon: Settings,
+        permission: "settings.manage",
+      },
+      {
+        label: "Audit log",
+        href: "/audit",
+        built: true,
+        icon: FileClock,
+        permission: "audit.view",
+      },
     ],
   },
 ];
 
 const allItems: NavItem[] = navigation.flatMap((group) => group.items);
+
+/**
+ * The navigation a role can actually reach. Groups left with no visible items
+ * disappear rather than rendering an empty heading.
+ */
+export function navigationFor(role: Role | null | undefined): NavGroup[] {
+  return navigation
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => item.built && can(role, item.permission)),
+    }))
+    .filter((group) => group.items.length > 0);
+}
 
 /** Longest matching nav href, so /inventory/ledger beats /inventory. */
 export function findActiveItem(pathname: string): NavItem | undefined {

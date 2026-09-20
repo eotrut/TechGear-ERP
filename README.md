@@ -5,9 +5,10 @@ keyboards, keycaps, switches, mice, headsets and streaming gear. It covers
 inventory, sales and POS, purchasing, CRM and finance reporting across seven
 sales channels.
 
-> **Status: Phase 2 of 8.** Tooling, the design system, the app shell, the full
-> database schema and the seeded demo data are in place. Feature modules land in
-> later phases. See [docs/PLAN.md](docs/PLAN.md) for the plan and phase order.
+> **Status: Phase 3 of 8.** Tooling, the design system, the app shell, the
+> database schema, the seeded demo data, and now authentication, role-based
+> access control and the audit log. Business modules land in later phases. See
+> [docs/PLAN.md](docs/PLAN.md) for the plan and phase order.
 
 ## Setup
 
@@ -87,6 +88,28 @@ shadcn/ui, lucide-react, PostgreSQL + Prisma, Auth.js v5, Zod, React Hook Form,
 TanStack Table and Query, dnd-kit, Recharts, Vitest, Playwright.
 
 Locale **en-PH**, currency **PHP**, timezone **Asia/Manila**, VAT **12%**.
+
+## Security
+
+- **One permission matrix**, `src/lib/rbac/matrix.ts`, read by middleware, every
+  page and every server action. [docs/permissions.md](docs/permissions.md) is
+  generated from it so it cannot drift.
+- **Three enforcement layers.** Middleware gates routes against the JWT; pages
+  call `requirePermission`; actions call `authorizeAction`. Server actions are
+  reachable from any route, so the action check is the one that matters.
+- **The token is never trusted for authorization.** Role and active status are
+  re-read from the database on every page and every action, so a deactivated or
+  demoted user is stopped at their next click rather than their next login.
+- **Login rate limiting** is database backed: 5 failures per email and 20 per IP
+  in a 15 minute window. An in-memory counter would reset on deploy and would
+  not be shared between instances.
+- **No account enumeration.** An unknown email and a wrong password return the
+  same message, and a bcrypt comparison runs against a dummy hash even when no
+  user exists, so the two take the same time.
+- **Audit trail** records who, what, when and a field-level before/after diff.
+  Password hashes are recorded as changed but never stored in the trail.
+- **Lockout guards.** An admin cannot deactivate their own account, and the last
+  active admin cannot be demoted or deactivated.
 
 ## Key design decisions
 

@@ -19,11 +19,22 @@ const BASE_URL = process.env.SHOOT_BASE_URL ?? "http://localhost:3000";
 const OUT_DIR = "docs/screenshots";
 const CLI_DIR = ".playwright-cli";
 
-/** name -> route. Extend as pages land. */
+/**
+ * name -> route. Extend as pages land.
+ * `auth: false` marks a page that must be captured signed out.
+ */
 const PAGES = {
-  dashboard: "/dashboard",
-  design: "/design",
+  login: { route: "/login", auth: false },
+  dashboard: { route: "/dashboard", auth: true },
+  design: { route: "/design", auth: true },
+  account: { route: "/account", auth: true },
+  audit: { route: "/audit", auth: true },
+  users: { route: "/settings/users", auth: true },
 };
+
+/** Admin sees the most, so it is the account used for authenticated captures. */
+const DEMO_EMAIL = "admin@techgear.ph";
+const DEMO_PASSWORD = "techgear123";
 
 const VIEWPORTS = [
   { label: "1440", width: 1440, height: 900 },
@@ -62,6 +73,7 @@ function cli(...args) {
   return execFileSync(process.execPath, [CLI_ENTRY, ...args], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
+    maxBuffer: 32 * 1024 * 1024,
   });
 }
 
@@ -98,15 +110,40 @@ mkdirSync(OUT_DIR, { recursive: true });
 // Start from a clean console log so findings belong to this run.
 rmSync(CLI_DIR, { recursive: true, force: true });
 
-cli("open", `${BASE_URL}${PAGES[targets[0]]}`);
+cli("open", `${BASE_URL}/login`);
+
+function signIn() {
+  cli("goto", `${BASE_URL}/login`);
+  cli("fill", "#email", DEMO_EMAIL);
+  cli("fill", "#password", DEMO_PASSWORD);
+  cli("click", "button[type=submit]");
+  cli("--raw", "eval", "() => new Promise((r) => setTimeout(r, 1500))");
+}
+
+function signOut() {
+  cli("cookie-clear");
+}
 
 let shots = 0;
+let signedIn = false;
+
 for (const name of targets) {
+  const page = PAGES[name];
+
+  // Authenticated pages need a session; the login page needs the opposite.
+  if (page.auth && !signedIn) {
+    signIn();
+    signedIn = true;
+  } else if (!page.auth && signedIn) {
+    signOut();
+    signedIn = false;
+  }
+
   for (const theme of THEMES) {
     cli("set-color-scheme", theme);
     for (const viewport of VIEWPORTS) {
       cli("resize", String(viewport.width), String(viewport.height));
-      cli("goto", `${BASE_URL}${PAGES[name]}`);
+      cli("goto", `${BASE_URL}${page.route}`);
       cli(
         "screenshot",
         "--filename",

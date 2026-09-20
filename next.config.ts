@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    // Enables forbidden() and unauthorized(), which render app/forbidden.tsx
+    // and app/unauthorized.tsx. Without this the calls in src/lib/rbac/guard.ts
+    // have no effect.
+    authInterrupts: true,
+  },
+
   // The floating dev-tools badge overlaps the sidebar and lands in every
   // Playwright screenshot. Turn it off so captures show only our UI.
   devIndicators: false,

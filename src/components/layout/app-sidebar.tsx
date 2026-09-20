@@ -7,15 +7,21 @@ import { X } from "lucide-react";
 import { BrandMark } from "@/components/layout/brand-mark";
 import { useSidebar } from "@/components/layout/sidebar-context";
 import { Button } from "@/components/ui/button";
-import { findActiveItem, navigation } from "@/lib/navigation";
+import type { Role } from "@prisma/client";
+
+import { findActiveItem, navigationFor } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
-function SidebarNav({ pathname }: { pathname: string }) {
+function SidebarNav({ pathname, role }: { pathname: string; role: Role }) {
   const activeItem = findActiveItem(pathname);
+  // Filtering happens here rather than on the server because nav items carry
+  // icon components, which cannot cross the server boundary. This is cosmetic
+  // either way: middleware and every page enforce the real check.
+  const groups = navigationFor(role);
 
   return (
     <nav aria-label="Main" className="flex-1 overflow-y-auto px-2 pb-4">
-      {navigation.map((group, groupIndex) => (
+      {groups.map((group, groupIndex) => (
         <div key={group.label ?? "root"} className={cn(groupIndex > 0 && "mt-5")}>
           {group.label ? (
             <h2 className="px-2.5 pb-1.5 text-[11px] font-medium tracking-[0.06em] text-ink-subtle uppercase">
@@ -95,7 +101,7 @@ function SidebarHeader({ onClose }: { onClose?: () => void }) {
   );
 }
 
-export function AppSidebar() {
+export function AppSidebar({ role }: { role: Role }) {
   const pathname = usePathname();
   const { isOpen, close } = useSidebar();
 
@@ -104,7 +110,7 @@ export function AppSidebar() {
       {/* Desktop: part of the layout flow. */}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-hairline bg-sidebar lg:flex">
         <SidebarHeader />
-        <SidebarNav pathname={pathname} />
+        <SidebarNav pathname={pathname} role={role} />
       </aside>
 
       {/* Mobile: overlay drawer. */}
@@ -132,7 +138,7 @@ export function AppSidebar() {
           inert={!isOpen}
         >
           <SidebarHeader onClose={close} />
-          <SidebarNav pathname={pathname} />
+          <SidebarNav pathname={pathname} role={role} />
         </aside>
       </div>
     </>

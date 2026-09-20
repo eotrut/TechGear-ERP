@@ -5,9 +5,10 @@ import { PanelLeft } from "lucide-react";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { useSidebar } from "@/components/layout/sidebar-context";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { UserMenu } from "@/components/layout/user-menu";
 import { Button } from "@/components/ui/button";
 
-export function TopBar() {
+export function TopBar({ user }: { user: { name: string; email: string; role: string } }) {
   const { open } = useSidebar();
 
   return (
@@ -26,6 +27,7 @@ export function TopBar() {
 
       <div className="ml-auto flex items-center gap-1">
         <ThemeToggle />
+        <UserMenu name={user.name} email={user.email} role={user.role} />
       </div>
     </header>
   );
