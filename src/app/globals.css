@@ -1,0 +1,333 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* next-themes drives the theme with a class on <html>, so dark: needs to key
+   off an ancestor class rather than the media query. */
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================================
+   TechGear ERP design tokens
+
+   Structure, spacing, radii and the surface-ladder idea come from DESIGN.md
+   (Linear). The accent is ours: Linear's lavender is replaced by "Aqua", a
+   cyan-teal that stays clear of the green / amber / red the ERP already
+   spends on status. See docs/design-direction.md for the full reasoning.
+
+   Linear documents no light mode, so the light ladder is derived here and
+   every pair is verified by `npm run check:contrast`.
+   ============================================================================ */
+
+:root {
+  /* --- Surface ladder (light) --------------------------------------------- */
+  --canvas: #fcfcfd;
+  --surface-1: #f6f7f9;
+  --surface-2: #f1f3f5;
+  --surface-3: #eaedf0;
+  --hairline: #e3e6ea;
+  --hairline-strong: #d3d8de;
+
+  /* --- Ink ---------------------------------------------------------------- */
+  --ink: #0d1114;
+  --ink-muted: #39424c;
+  --ink-subtle: #5c646e;
+
+  /* --- Aqua accent -------------------------------------------------------- */
+  --accent-fill: #0b6e82;
+  --accent-fill-hover: #095f70;
+  --accent-on-fill: #ffffff;
+  --accent-strong: #075b6d;
+  --accent-wash: #e6f3f6;
+
+  /* --- Status ------------------------------------------------------------- */
+  --success: #0f7a3d;
+  --success-wash: #e7f4ec;
+  --warning: #8a5a00;
+  --warning-wash: #fbf1de;
+  --danger: #b3261e;
+  --danger-wash: #fbeae9;
+  /* Separate from --danger: the solid button fill, which always carries white
+     text. On dark the text colour stays bright, but the fill must not. */
+  --danger-fill: #b3261e;
+  --danger-on-fill: #ffffff;
+  --info: #175cd3;
+  --info-wash: #e8f0fd;
+
+  /* --- shadcn/ui semantic mapping ----------------------------------------- */
+  --background: var(--canvas);
+  --foreground: var(--ink);
+  --card: var(--canvas);
+  --card-foreground: var(--ink);
+  --popover: var(--canvas);
+  --popover-foreground: var(--ink);
+  --primary: var(--accent-fill);
+  --primary-foreground: var(--accent-on-fill);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--ink);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--ink-subtle);
+  --accent: var(--surface-2);
+  --accent-foreground: var(--ink);
+  --destructive: var(--danger-fill);
+  --destructive-foreground: var(--danger-on-fill);
+  --border: var(--hairline);
+  --input: var(--hairline-strong);
+  --ring: var(--accent-fill);
+
+  /* --- Sidebar ------------------------------------------------------------ */
+  --sidebar: var(--surface-1);
+  --sidebar-foreground: var(--ink-muted);
+  --sidebar-accent: var(--surface-3);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--hairline);
+  --sidebar-ring: var(--accent-fill);
+
+  /* --- Charts. Provisional: revisited under the dataviz skill in Phase 7. -- */
+  --chart-1: #0b6e82;
+  --chart-2: #3f9fb0;
+  --chart-3: #74c6d3;
+  --chart-4: #1d4e5c;
+  --chart-5: #a8dde5;
+
+  /* --- Radii. DESIGN.md scale, used verbatim. ----------------------------- */
+  --radius-xs: 4px; /* chips, status badges */
+  --radius-sm: 6px; /* inline tags */
+  --radius-md: 8px; /* buttons, inputs */
+  --radius-lg: 12px; /* panels */
+  --radius-xl: 16px; /* largest container */
+  --radius: var(--radius-md);
+
+  /* --- Elevation. Linear carries depth with surfaces, not shadows. The only
+         shadow in the system is for true overlays. ------------------------- */
+  --shadow-overlay:
+    0 1px 2px rgb(13 17 20 / 0.06), 0 8px 24px -4px rgb(13 17 20 / 0.12),
+    0 0 0 1px rgb(13 17 20 / 0.04);
+}
+
+.dark {
+  /* --- Surface ladder (dark). DESIGN.md's four-step ladder. --------------- */
+  --canvas: #08090b;
+  --surface-1: #101214;
+  --surface-2: #16181b;
+  --surface-3: #1c1f23;
+  --hairline: #23252a;
+  --hairline-strong: #34343a;
+
+  --ink: #f5f7f8;
+  --ink-muted: #c9d1d9;
+  --ink-subtle: #8b929c;
+
+  /* On dark the accent is bright, so it carries dark text. White on mid-cyan
+     only reaches 3.11:1 and would fail body contrast. */
+  --accent-fill: #2bb8ce;
+  --accent-fill-hover: #4ecadd;
+  --accent-on-fill: #04161a;
+  --accent-strong: #5fd2e3;
+  --accent-wash: #0d2c33;
+
+  --success: #3dd68c;
+  --success-wash: #0e2a1d;
+  --warning: #e8b339;
+  --warning-wash: #2c2311;
+  --danger: #f87171;
+  --danger-wash: #2e1616;
+  /* #f87171 as a button fill is brighter than the accent and would outrank the
+     primary action. This is deep enough to stay quiet, and passes AA on white. */
+  --danger-fill: #c0392f;
+  --danger-on-fill: #ffffff;
+  --info: #7aa7f5;
+  --info-wash: #131f33;
+
+  --background: var(--canvas);
+  --foreground: var(--ink);
+  --card: var(--surface-1);
+  --card-foreground: var(--ink);
+  --popover: var(--surface-2);
+  --popover-foreground: var(--ink);
+  --primary: var(--accent-fill);
+  --primary-foreground: var(--accent-on-fill);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--ink);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--ink-subtle);
+  --accent: var(--surface-3);
+  --accent-foreground: var(--ink);
+  --destructive: var(--danger-fill);
+  --destructive-foreground: var(--danger-on-fill);
+  --border: var(--hairline);
+  --input: var(--hairline-strong);
+  --ring: var(--accent-fill);
+
+  --sidebar: var(--surface-1);
+  --sidebar-foreground: var(--ink-muted);
+  --sidebar-accent: var(--surface-3);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--hairline);
+  --sidebar-ring: var(--accent-fill);
+
+  --chart-1: #2bb8ce;
+  --chart-2: #1d8fa3;
+  --chart-3: #7fdcea;
+  --chart-4: #14646f;
+  --chart-5: #b3ecf4;
+
+  --shadow-overlay:
+    0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -4px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.06);
+}
+
+@theme inline {
+  /* Ladder and ink, exposed as Tailwind colors. */
+  --color-canvas: var(--canvas);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+
+  --color-accent-fill: var(--accent-fill);
+  --color-accent-fill-hover: var(--accent-fill-hover);
+  --color-accent-on-fill: var(--accent-on-fill);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-wash: var(--accent-wash);
+
+  --color-success: var(--success);
+  --color-success-wash: var(--success-wash);
+  --color-warning: var(--warning);
+  --color-warning-wash: var(--warning-wash);
+  --color-danger: var(--danger);
+  --color-danger-wash: var(--danger-wash);
+  --color-danger-fill: var(--danger-fill);
+  --color-danger-on-fill: var(--danger-on-fill);
+  --color-info: var(--info);
+  --color-info-wash: var(--info-wash);
+
+  /* shadcn/ui semantic aliases. */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Type scale. DESIGN.md's ratios and negative tracking, compressed for a
+     dense application UI. See docs/design-direction.md. */
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.4;
+  --text-caption--letter-spacing: 0;
+  --text-body-sm: 0.8125rem;
+  --text-body-sm--line-height: 1.5;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.5;
+  --text-lead: 1rem;
+  --text-lead--line-height: 1.5;
+  --text-lead--letter-spacing: -0.003em;
+  --text-section: 1.125rem;
+  --text-section--line-height: 1.25;
+  --text-section--letter-spacing: -0.011em;
+  --text-section--font-weight: 600;
+  --text-title: 1.5rem;
+  --text-title--line-height: 1.2;
+  --text-title--letter-spacing: -0.017em;
+  --text-title--font-weight: 600;
+  --text-display: 2rem;
+  --text-display--line-height: 1.15;
+  --text-display--letter-spacing: -0.019em;
+  --text-display--font-weight: 600;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+
+  --shadow-overlay: var(--shadow-overlay);
+}
+
+@layer base {
+  * {
+    @apply border-hairline;
+  }
+
+  html {
+    /* Tables and forms never bounce horizontally at 390px. */
+    overflow-x: hidden;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-body text-ink antialiased;
+    font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* SKUs, order numbers, quantities and money are mono with tabular figures.
+     SPEC 3.1 asks for it and it is what makes numeric columns line up.
+     This is a documented departure from DESIGN.md's "mono only in code". */
+  .font-mono,
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  /* One focus treatment across the app: a 2px accent ring, as DESIGN.md
+     specifies for Linear's focus state. */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent-fill;
+  }
+
+  ::selection {
+    background-color: var(--accent-wash);
+    color: var(--ink);
+  }
+}
+
+@layer utilities {
+  /* The faint top-edge highlight DESIGN.md describes on lifted dark panels.
+     It is what keeps a dark surface from reading as a flat hole. */
+  .edge-highlight {
+    box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.04);
+  }
+}
+
+/* MOTION_INTENSITY is 3, so there is very little to disable, but parity with
+   reduced-motion users is not optional. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,8 @@
+# Normalize line endings so the repo is identical on every platform.
+* text=auto eol=lf
+
+*.png binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary

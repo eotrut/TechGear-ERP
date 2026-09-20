@@ -1,0 +1,13 @@
+.next
+node_modules
+.playwright
+.agents
+package-lock.json
+docs/screenshots
+DESIGN.md
+docs/reference
+public
+
+# Source documents we do not reformat
+SPEC.md
+skills-lock.json
