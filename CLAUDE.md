@@ -64,6 +64,10 @@ npm run check:contrast   # verify every theme token pair against WCAG
 npm run shoot            # Playwright CLI screenshot sweep, fails on console errors
 npm run db:up            # start Postgres via Docker Compose
 npm run db:down          # stop it
+npm run db:seed          # deterministic 12 months of demo data
+npm run db:verify        # 54 integrity checks against the seeded data
+npm run db:reset         # drop, re-migrate, re-seed
+npm run db:images        # fetch placeholder product images
 ```
 
 Copy `.env.example` to `.env.local` before first run. Every variable is
@@ -128,6 +132,36 @@ Other standing rules:
 - Define colours as tokens in `globals.css`. Never hard-code a hex in a
   component. Run `npm run check:contrast` after any token change.
 - Load the `dataviz` skill before writing any chart code.
+
+## Database
+
+Prisma 7 changed two things the docs still get wrong in places:
+
+- **The datasource URL lives in `prisma.config.ts`, not `schema.prisma`.** That
+  file also loads `.env.local` explicitly, because Prisma 7 no longer reads
+  dotenv files on its own.
+- **The client needs a driver adapter.** `src/lib/db.ts` builds `PrismaPg` from
+  the validated env. Any new `PrismaClient` must do the same.
+
+Trigram GIN indexes are declared in the schema (`postgresqlExtensions` preview),
+not in raw SQL, so `prisma migrate dev` never reports drift. `CHECK` constraints
+and the partial revenue index are in `prisma/migrations/*_constraints`, which
+Prisma leaves alone.
+
+### Seeding rules
+
+The seed builds a year of history in memory and bulk-inserts it. Two rules keep
+that honest, and breaking either one fails the seed loudly:
+
+1. **Nothing may be dated in the future.** Use `clampToNow` on any derived date.
+   A restock stamped after "now" reorders the ledger against events computed
+   from the final position.
+2. **Movements are replayed in date order** by `SeedLedger.replayChronologically`
+   before anything is written. That pass recomputes every running balance and
+   every COGS snapshot, because the builders run by module, not by date. It
+   throws if stock would ever go negative.
+
+After changing the seed, always run `npm run db:seed && npm run db:verify`.
 
 ## Known issues
 

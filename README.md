@@ -5,9 +5,9 @@ keyboards, keycaps, switches, mice, headsets and streaming gear. It covers
 inventory, sales and POS, purchasing, CRM and finance reporting across seven
 sales channels.
 
-> **Status: Phase 1 of 8.** The design system, app shell and tooling are in
-> place. The database schema, seed data and every feature module land in later
-> phases. See [docs/PLAN.md](docs/PLAN.md) for the full plan and phase order.
+> **Status: Phase 2 of 8.** Tooling, the design system, the app shell, the full
+> database schema and the seeded demo data are in place. Feature modules land in
+> later phases. See [docs/PLAN.md](docs/PLAN.md) for the plan and phase order.
 
 ## Setup
 
@@ -15,8 +15,54 @@ sales channels.
 cp .env.example .env.local   # then set AUTH_SECRET (npx auth secret)
 npm install
 npm run db:up                # Postgres 17 via Docker Compose
+npx prisma migrate deploy    # create the schema
+npm run db:seed              # 12 months of realistic demo data
 npm run dev                  # http://localhost:3000
 ```
+
+Product images are placeholders fetched once and committed. If you need to
+re-fetch them, run `npm run db:images`.
+
+## Demo accounts
+
+All four use the password **`techgear123`**.
+
+| Email                   | Role      | Sees                                                          |
+| ----------------------- | --------- | ------------------------------------------------------------- |
+| `admin@techgear.ph`     | Admin     | Everything, including users, settings and the audit log       |
+| `manager@techgear.ph`   | Manager   | Everything except deletes, user management and settings       |
+| `sales@techgear.ph`     | Sales     | Orders, POS, customers, leads and tickets                     |
+| `warehouse@techgear.ph` | Warehouse | Stock, receiving, transfers and fulfilment (no money columns) |
+
+A fifth user, `jerome.flores@techgear.ph`, is deactivated on purpose so the user
+management page has a realistic mix.
+
+## Seeded data
+
+`npm run db:seed` is deterministic: a fixed faker seed means names, prices and
+distributions are identical on every run, while dates are generated relative to
+today so the dashboard is never empty.
+
+|            |                                                                            |
+| ---------- | -------------------------------------------------------------------------- |
+| Catalogue  | 68 products, 153 variants, 12 brands, 8 categories, 2 warehouses           |
+| Sales      | ~1,050 orders over 12 months, all 7 channels, with 11.11 and 12.12 spikes  |
+| Stock      | ~3,300 ledger movements, a cycle count, an inter-branch transfer           |
+| Purchasing | 8 suppliers, 15 purchase orders across every status, receipts and bills    |
+| CRM        | 120 customers with real PH addresses, 30 leads, 20 tickets, 100 activities |
+| Finance    | 13 months of expenses, promos, returns, refunds, warranty claims           |
+
+Verify it at any time:
+
+```bash
+npm run db:verify
+```
+
+That runs 54 checks: SPEC section 7 targets, the stock ledger invariants from
+docs/PLAN.md section 6.5 (no negative stock at any point in the history, the
+running balance reconciles, moving-average cost matches the ledger), order money
+integrity (totals equal line sums, VAT is exactly 12 percent of the VAT-inclusive
+total, payments reconcile), and content quality.
 
 Every environment variable is validated on boot by `src/lib/env.ts`. The app
 refuses to start rather than failing later at the first query.

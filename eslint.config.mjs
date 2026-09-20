@@ -26,8 +26,8 @@ const eslintConfig = [
     },
   },
   {
-    // CLI scripts report to stdout; that is their whole job.
-    files: ["scripts/**/*.{mjs,ts}"],
+    // CLI scripts and the seed report to stdout; that is their whole job.
+    files: ["scripts/**/*.{mjs,ts}", "prisma/**/*.ts"],
     rules: { "no-console": "off" },
   },
   // Prettier last so formatting rules never fight the formatter.
