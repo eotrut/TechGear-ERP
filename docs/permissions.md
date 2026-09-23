@@ -143,6 +143,13 @@ The UI hides what a role cannot do, but hiding is never the control.
 | `suppliers.manage` |   Y   |    Y    |   -   |     -     |
 | `suppliers.delete` |   Y   |    -    |   -   |     -     |
 
+## Warehouses
+
+| Permission          | ADMIN | MANAGER | SALES | WAREHOUSE |
+| ------------------- | :---: | :-----: | :---: | :-------: |
+| `warehouses.view`   |   Y   |    Y    |   Y   |     Y     |
+| `warehouses.manage` |   Y   |    Y    |   -   |     -     |
+
 ## Purchasing
 
 | Permission           | ADMIN | MANAGER | SALES | WAREHOUSE |
@@ -228,6 +235,7 @@ Rules are evaluated most specific first.
 | `/purchasing/bills`            | `bills.view`             |   Y   |    Y    |   -   |     -     |
 | `/purchasing`                  | `purchasing.view`        |   Y   |    Y    |   -   |     Y     |
 | `/suppliers`                   | `suppliers.view`         |   Y   |    Y    |   -   |     Y     |
+| `/warehouses`                  | `warehouses.view`        |   Y   |    Y    |   Y   |     Y     |
 | `/reports/inventory-valuation` | `reports.inventory`      |   Y   |    Y    |   -   |     Y     |
 | `/reports/stock-movement`      | `reports.inventory`      |   Y   |    Y    |   -   |     Y     |
 | `/reports/slow-moving`         | `reports.inventory`      |   Y   |    Y    |   -   |     Y     |
@@ -247,9 +255,9 @@ Rules are evaluated most specific first.
 
 ## Totals
 
-| Role      | Permissions held | of 91 |
+| Role      | Permissions held | of 93 |
 | --------- | ---------------: | ----: |
-| ADMIN     |               91 |  100% |
-| MANAGER   |               81 |   89% |
-| SALES     |               41 |   45% |
-| WAREHOUSE |               29 |   32% |
+| ADMIN     |               93 |  100% |
+| MANAGER   |               83 |   89% |
+| SALES     |               42 |   45% |
+| WAREHOUSE |               30 |   32% |

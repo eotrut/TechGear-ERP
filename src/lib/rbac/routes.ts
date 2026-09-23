@@ -50,6 +50,7 @@ export const ROUTE_RULES: RouteRule[] = [
   { prefix: "/purchasing/bills", permission: "bills.view" },
   { prefix: "/purchasing", permission: "purchasing.view" },
   { prefix: "/suppliers", permission: "suppliers.view" },
+  { prefix: "/warehouses", permission: "warehouses.view" },
 
   { prefix: "/reports/inventory-valuation", permission: "reports.inventory" },
   { prefix: "/reports/stock-movement", permission: "reports.inventory" },

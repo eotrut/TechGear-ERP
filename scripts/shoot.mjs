@@ -30,6 +30,17 @@ const PAGES = {
   account: { route: "/account", auth: true },
   audit: { route: "/audit", auth: true },
   users: { route: "/settings/users", auth: true },
+  products: { route: "/products", auth: true },
+  // Deterministic seed ids, so the detail captures are the same product every run.
+  "products-low": { route: "/products?stock=low", auth: true },
+  "product-detail": { route: "/products/prd_000001", auth: true },
+  "product-edit": { route: "/products/prd_000001/edit", auth: true },
+  "product-new": { route: "/products/new", auth: true },
+  "product-import": { route: "/products/import", auth: true },
+  categories: { route: "/categories", auth: true },
+  brands: { route: "/brands", auth: true },
+  suppliers: { route: "/suppliers", auth: true },
+  warehouses: { route: "/warehouses", auth: true },
 };
 
 /** Admin sees the most, so it is the account used for authenticated captures. */

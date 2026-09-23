@@ -110,6 +110,10 @@ export const PERMISSIONS = [
   "suppliers.manage",
   "suppliers.delete",
 
+  // Warehouses
+  "warehouses.view",
+  "warehouses.manage",
+
   // Purchasing
   "purchasing.view",
   "purchasing.manage",
@@ -255,6 +259,14 @@ export const MATRIX: Record<Permission, Partial<Record<Role, Access>>> = {
   "suppliers.manage": ADMIN_AND_MANAGER,
   "suppliers.delete": ADMIN_ONLY,
 
+  // ------------------------------------------------------------ warehouses
+  // Not in the plan's table: every module that moves stock names a warehouse,
+  // so the list is readable by everyone and editable by the two roles that
+  // already own operational configuration. Deactivating one is an update, not
+  // a delete, because stock levels and movements point at it forever.
+  "warehouses.view": ALL_ROLES,
+  "warehouses.manage": ADMIN_AND_MANAGER,
+
   // ------------------------------------------------------------ purchasing
   "purchasing.view": { ADMIN: "all", MANAGER: "all", WAREHOUSE: "all" },
   "purchasing.manage": ADMIN_AND_MANAGER,
@@ -394,6 +406,7 @@ export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] =
     ],
   },
   { label: "Suppliers", permissions: ["suppliers.view", "suppliers.manage", "suppliers.delete"] },
+  { label: "Warehouses", permissions: ["warehouses.view", "warehouses.manage"] },
   {
     label: "Purchasing",
     permissions: [

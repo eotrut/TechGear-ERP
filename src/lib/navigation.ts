@@ -22,6 +22,7 @@ import {
   Truck,
   Users,
   Wallet,
+  Warehouse,
   type LucideIcon,
 } from "lucide-react";
 
@@ -74,9 +75,21 @@ export const navigation: NavGroup[] = [
   {
     label: "Catalogue",
     items: [
-      { label: "Products", href: "/products", icon: Package, permission: "products.view" },
-      { label: "Categories", href: "/categories", icon: Tags, permission: "taxonomy.view" },
-      { label: "Brands", href: "/brands", icon: Store, permission: "taxonomy.view" },
+      {
+        label: "Products",
+        href: "/products",
+        built: true,
+        icon: Package,
+        permission: "products.view",
+      },
+      {
+        label: "Categories",
+        href: "/categories",
+        built: true,
+        icon: Tags,
+        permission: "taxonomy.view",
+      },
+      { label: "Brands", href: "/brands", built: true, icon: Store, permission: "taxonomy.view" },
     ],
   },
   {
@@ -100,6 +113,13 @@ export const navigation: NavGroup[] = [
         href: "/inventory/transfers",
         icon: ArrowLeftRight,
         permission: "inventory.transfer",
+      },
+      {
+        label: "Warehouses",
+        href: "/warehouses",
+        built: true,
+        icon: Warehouse,
+        permission: "warehouses.view",
       },
     ],
   },
@@ -136,7 +156,13 @@ export const navigation: NavGroup[] = [
         icon: FileText,
         permission: "purchasing.view",
       },
-      { label: "Suppliers", href: "/suppliers", icon: Truck, permission: "suppliers.view" },
+      {
+        label: "Suppliers",
+        href: "/suppliers",
+        built: true,
+        icon: Truck,
+        permission: "suppliers.view",
+      },
       { label: "Bills", href: "/purchasing/bills", icon: Wallet, permission: "bills.view" },
     ],
   },
@@ -192,6 +218,11 @@ export function findActiveItem(pathname: string): NavItem | undefined {
 
 /** Labels for path segments that are not themselves nav destinations. */
 const segmentLabels: Record<string, string> = {
+  products: "Products",
+  categories: "Categories",
+  brands: "Brands",
+  suppliers: "Suppliers",
+  warehouses: "Warehouses",
   inventory: "Inventory",
   purchasing: "Purchasing",
   settings: "Settings",
@@ -207,11 +238,15 @@ const segmentLabels: Record<string, string> = {
   mine: "My tasks",
 };
 
+/** Seeded ids look like prd_000001; cuids are a long opaque run of characters. */
+const RECORD_ID = /^([a-z]{2,4}_\d+|c[a-z0-9]{20,})$/;
+
 export function labelForSegment(segment: string): string {
   const known = segmentLabels[segment];
   if (known) return known;
-  // Record ids stay as-is; they are replaced with real names by the page once
-  // the data layer lands in a later phase.
+  // A record id is shown verbatim rather than title-cased into something that
+  // reads like a word ("Prd_000001"). The page heading carries the real name.
+  if (RECORD_ID.test(segment)) return segment;
   return segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, " ");
 }
 

@@ -5,10 +5,12 @@ keyboards, keycaps, switches, mice, headsets and streaming gear. It covers
 inventory, sales and POS, purchasing, CRM and finance reporting across seven
 sales channels.
 
-> **Status: Phase 3 of 8.** Tooling, the design system, the app shell, the
-> database schema, the seeded demo data, and now authentication, role-based
-> access control and the audit log. Business modules land in later phases. See
-> [docs/PLAN.md](docs/PLAN.md) for the plan and phase order.
+> **Status: Phase 4 of 8.** Tooling, the design system, the app shell, the
+> database schema, the seeded demo data, authentication with role-based access
+> control and the audit log, and now the catalogue: products, variants,
+> categories, brands, suppliers and warehouses, with CSV import and export and
+> bulk price updates. Sales, POS, CRM, purchasing and reporting land in later
+> phases. See [docs/PLAN.md](docs/PLAN.md) for the plan and phase order.
 
 ## Setup
 
@@ -131,6 +133,20 @@ everything else:
   rows. The permission matrix is generated from one typed source.
 - **Soft delete only on catalogue and directory records.** Ledger and
   transactional records are cancelled or voided by status, never deleted.
+  Archiving a product is a status change rather than a `deletedAt` stamp, so
+  the archived view can still find it while every live list filters it out.
+- **The product list is one SQL statement.** Stock is aggregated across every
+  variant and warehouse, filtered and sorted on that aggregate, and paginated
+  on the server, which is the shape Prisma's query API cannot express without
+  loading the whole catalogue first. Sort keys are whitelisted, never
+  interpolated.
+- **Filters live in the URL.** A filtered product view is a link somebody can
+  be sent. Column visibility is the one piece of table state kept per browser,
+  because it is a personal preference rather than a shared view.
+- **CSV import is a two-step diff.** The file is planned into per-row create,
+  update, unchanged and error outcomes and shown before anything is written,
+  and the plan is recomputed on the server at commit time so a stale preview
+  can never be what gets applied.
 
 ## Design
 

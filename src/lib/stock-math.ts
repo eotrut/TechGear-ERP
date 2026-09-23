@@ -76,3 +76,16 @@ export function inventoryValue(
   }
   return total;
 }
+
+export type StockHealth = "out" | "low" | "in";
+
+/**
+ * How a position reads in the catalogue: out of stock, at or below its reorder
+ * level, or healthy. A reorder level of zero means nobody set one, so only a
+ * genuinely empty bin is called out.
+ */
+export function stockHealth(onHand: number, reorderLevel: number): StockHealth {
+  if (onHand <= 0) return "out";
+  if (reorderLevel > 0 && onHand <= reorderLevel) return "low";
+  return "in";
+}

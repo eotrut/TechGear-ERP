@@ -137,3 +137,44 @@ export function allocateCentavos(total: number, weights: readonly number[]): num
 
   return result;
 }
+
+/** Accepts "4190", "4,190.5", "₱4,190.00" and " 4190.00 ". Rejects the rest. */
+const PESO_INPUT = /^-?\d{1,12}(\.\d{1,2})?$/;
+
+/**
+ * Parse a typed peso amount into centavos without ever touching a float.
+ *
+ * `Math.round(4.1 * 100)` is 410, but `Math.round(1.005 * 100)` is 100, and a
+ * price list that silently loses a centavo on some rows is worse than one that
+ * refuses the input. The pesos and the centavos are parsed as separate
+ * integers instead, so the result is exact by construction.
+ *
+ * Returns null when the text is not a well formed amount, which the caller
+ * turns into a validation message.
+ */
+export function parsePesoInput(value: string): number | null {
+  const cleaned = value.replace(/[₱\s,]/g, "").replace(/^PHP/i, "");
+  if (cleaned === "" || !PESO_INPUT.test(cleaned)) return null;
+
+  const negative = cleaned.startsWith("-");
+  const [whole = "0", fraction = ""] = cleaned.replace("-", "").split(".");
+  const centavos = Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
+
+  if (!Number.isSafeInteger(centavos)) return null;
+  const signed = negative ? -centavos : centavos;
+
+  return signed > MAX_CENTAVOS || signed < MIN_CENTAVOS ? null : signed;
+}
+
+/** True when the text parses as a peso amount. Used by Zod refinements. */
+export function isPesoInput(value: string): boolean {
+  return parsePesoInput(value) !== null;
+}
+
+/** Centavos back to the plain "4190.00" a number input expects. */
+export function toPesoInput(centavos: number): string {
+  const negative = centavos < 0;
+  const absolute = Math.abs(centavos);
+  const text = `${Math.floor(absolute / 100)}.${String(absolute % 100).padStart(2, "0")}`;
+  return negative ? `-${text}` : text;
+}
