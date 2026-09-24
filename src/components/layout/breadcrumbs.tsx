@@ -1,14 +1,15 @@
 "use client";
 
+import type { Role } from "@prisma/client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 
 import { buildCrumbs } from "@/lib/navigation";
 
-export function Breadcrumbs() {
+export function Breadcrumbs({ role }: { role: Role }) {
   const pathname = usePathname();
-  const crumbs = buildCrumbs(pathname);
+  const crumbs = buildCrumbs(pathname, role);
 
   if (crumbs.length === 0) return null;
 
@@ -25,6 +26,9 @@ export function Breadcrumbs() {
               <span aria-current="page" className="truncate font-medium text-ink">
                 {crumb.label}
               </span>
+            ) : !crumb.reachable ? (
+              // A parent this role cannot open is context, not a link to a 403.
+              <span className="truncate text-ink-subtle">{crumb.label}</span>
             ) : (
               <Link
                 href={crumb.href}

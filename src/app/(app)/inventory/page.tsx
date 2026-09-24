@@ -4,10 +4,10 @@ import { ArrowLeftRight, ClipboardPen } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
-import { ListFilters } from "@/features/inventory/components/list-filters";
-import { StatStrip, type Stat } from "@/features/inventory/components/stat-strip";
+import { ListFilters } from "@/components/data-table/list-filters";
+import { StatStrip, type Stat } from "@/components/layout/stat-strip";
 import { StockTable } from "@/features/inventory/components/stock-table";
-import { ViewTabs } from "@/features/inventory/components/view-tabs";
+import { ViewTabs } from "@/components/data-table/view-tabs";
 import {
   categoryOptions,
   listStock,

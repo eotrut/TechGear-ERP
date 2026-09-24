@@ -7,6 +7,11 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import type { AuditAction, NotificationType, Role } from "@prisma/client";
 
+import {
+  classifySegment,
+  REALISED_ORDER_STATUSES,
+  vipThreshold,
+} from "../../src/features/customers/services/segment-rules";
 import { buildAftersales } from "./aftersales";
 import { buildCatalogue, DEMO_PASSWORD } from "./catalogue";
 import { buildCrm } from "./crm";
@@ -136,13 +141,7 @@ function applyCustomerRollups(ctx: SeedContext): void {
 
   for (const order of tables.orders) {
     if (!order.customerId) continue;
-    const realised =
-      order.status === "PAID" ||
-      order.status === "PACKED" ||
-      order.status === "SHIPPED" ||
-      order.status === "DELIVERED" ||
-      order.status === "COMPLETED";
-    if (!realised) continue;
+    if (!(REALISED_ORDER_STATUSES as readonly string[]).includes(String(order.status))) continue;
 
     const id = String(order.customerId);
     const placedAt = order.placedAt as Date;
@@ -158,29 +157,22 @@ function applyCustomerRollups(ctx: SeedContext): void {
     }
   }
 
-  const totals = [...stats.values()].map((s) => s.total).sort((a, b) => b - a);
-  const vipThreshold = totals[Math.floor(totals.length * 0.1)] ?? Number.MAX_SAFE_INTEGER;
+  const threshold = vipThreshold([...stats.values()].map((s) => s.total));
 
   for (const customer of tables.customers) {
     const entry = stats.get(String(customer.id));
-    if (!entry) {
-      customer.segment = "NEW";
-      continue;
-    }
-
-    const daysSinceLast = Math.round((ctx.now.getTime() - entry.last.getTime()) / 86_400_000);
-
-    customer.lifetimeValueCentavos = entry.total;
-    customer.orderCount = entry.count;
-    customer.lastOrderAt = entry.last;
-    customer.segment =
-      daysSinceLast > 180
-        ? "DORMANT"
-        : entry.count >= 10 || entry.total >= vipThreshold
-          ? "VIP"
-          : entry.count >= 2
-            ? "REPEAT"
-            : "NEW";
+    customer.lifetimeValueCentavos = entry?.total ?? 0;
+    customer.orderCount = entry?.count ?? 0;
+    customer.lastOrderAt = entry?.last ?? null;
+    // The same rules the app applies, so a refresh after seeding changes nothing.
+    customer.segment = classifySegment(
+      {
+        orderCount: entry?.count ?? 0,
+        lifetimeValueCentavos: entry?.total ?? 0,
+        lastOrderAt: entry?.last ?? null,
+      },
+      { now: ctx.now, vipThresholdCentavos: threshold },
+    );
   }
 }
 

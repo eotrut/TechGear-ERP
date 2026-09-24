@@ -1,6 +1,7 @@
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { SidebarProvider } from "@/components/layout/sidebar-context";
 import { TopBar } from "@/components/layout/top-bar";
+import { Toaster } from "@/components/ui/sonner";
 import { requireUser } from "@/lib/rbac/guard";
 
 /**
@@ -23,6 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </main>
         </div>
       </div>
+      <Toaster />
     </SidebarProvider>
   );
 }

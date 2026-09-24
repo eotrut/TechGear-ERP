@@ -65,12 +65,14 @@ npm run shoot            # Playwright CLI screenshot sweep, fails on console err
 npm run db:up            # start Postgres via Docker Compose
 npm run db:down          # stop it
 npm run db:seed          # deterministic 12 months of demo data
-npm run db:verify        # 59 integrity checks against the seeded data
+npm run db:verify        # 70 integrity checks against the seeded data
+npm run db:segments      # recompute customer segments (the nightly job)
 npm run db:reset         # drop, re-migrate, re-seed
 npm run db:images        # fetch placeholder product images
 npm test                 # Vitest: unit project, then the db project (needs Postgres)
 npm run test:db          # stock ledger and concurrency tests only
 npm run verify:rbac      # drives a browser through all four roles
+npm run verify:crm       # drags a lead, converts one, opens a ticket, checks the DB
 npm run gen:permissions  # regenerate docs/permissions.md from the matrix
 ```
 
@@ -216,6 +218,27 @@ concurrency guarantees intact:
 - The db test project creates `techgear_erp_test` and never touches the demo
   data. Set `SKIP_DB_TESTS=1` to run only unit tests without Docker.
 
+## CRM
+
+- **Lead stage changes lock the lead row and go through `explainLeadMove`.**
+  The board checks the same pure rules in the browser for instant feedback,
+  but only the service's check counts. Won is reachable only by
+  `convertLead`, so every won lead has a customer.
+- **Kanban order is `Lead.position`, a float.** A move sends the neighbour
+  ids, never a position; the service takes the midpoint and renumbers only
+  that column when the gap is spent. Do not write positions anywhere else.
+- **Segment rules live in `customers/services/segment-rules.ts` only.** The
+  seed, `db:segments`, the refresh action and (from the orders phase) order
+  completion must call `classifySegment` / `refreshCustomerRollup`, never
+  reimplement them.
+- **Ticket SLA targets come from `addBusinessHours`** (Mon to Sat, 9 to 6,
+  Manila). First response is stamped only by the first non-internal comment.
+- **Anything a client component renders from "now" (SLA countdowns, relative
+  times) is computed on the server** and passed down, or set in an effect.
+  Computing it during render hydrates with a different minute.
+- **dnd-kit needs a fixed `id` on `DndContext`**, or its generated aria ids
+  differ between server and client.
+
 ## Known issues
 
 - `npm audit` reports a postcss advisory reachable only through Next 15's own
@@ -233,3 +256,6 @@ concurrency guarantees intact:
   (`next.config.ts`). Without that, the screenshot sweep writes into the project
   while the server is serving and the watcher recompiles mid-request, which
   surfaces as `SyntaxError: Unexpected end of JSON input` and an intermittent 500. Do not remove those ignores.
+- `AUTH_URL` must match the origin the dev server is on. Auth.js rebuilds the
+  request URL from it, so running on :3100 with `AUTH_URL` still at :3000
+  sends the middleware's 403 rewrite to whatever else is on :3000.

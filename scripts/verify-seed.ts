@@ -6,6 +6,9 @@ loadEnv({ path: ".env", quiet: true });
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
+import { recomputeSegments } from "../src/features/customers/services/segments";
+import { addBusinessHours, SLA_HOURS } from "../src/features/tickets/services/sla";
+
 /**
  * Row counts and integrity checks for the seeded database.
  *
@@ -443,7 +446,10 @@ async function main(): Promise<void> {
 
   const missingAddress = await scalar(`
     SELECT COUNT(*)::int AS value FROM "Customer" c
-    WHERE NOT EXISTS (SELECT 1 FROM "Address" a WHERE a."customerId" = c.id)`);
+    WHERE NOT ('from-lead' = ANY(c.tags))
+      AND NOT EXISTS (SELECT 1 FROM "Address" a WHERE a."customerId" = c.id)`);
+  // A lead converted in the moment may not have an address yet; Customer 360
+  // asks for one. Every other customer was created through the address form.
   check("Every customer has a Philippine address", missingAddress === 0);
 
   const badPhones = await scalar(`
@@ -552,6 +558,120 @@ async function main(): Promise<void> {
     `  Inventory at cost:             PHP ${(inventoryValue / 100).toLocaleString("en-PH", { maximumFractionDigits: 0 })}`,
   );
   check("Inventory has value", inventoryValue > 0);
+
+  // ======================================================================= CRM
+  heading("CRM");
+
+  const wonUnlinked = await scalar(`
+    SELECT COUNT(*)::int AS value FROM "Lead" WHERE stage = 'WON' AND ("customerId" IS NULL OR "wonAt" IS NULL)`);
+  check("Every won lead is linked to the customer it became", wonUnlinked === 0);
+
+  const lostUnexplained = await scalar(`
+    SELECT COUNT(*)::int AS value FROM "Lead"
+    WHERE stage = 'LOST' AND ("lostReason" IS NULL OR "lostAt" IS NULL)`);
+  check("Every lost lead records when and why", lostUnexplained === 0);
+
+  const positionClashes = await scalar(`
+    SELECT COUNT(*)::int AS value FROM (
+      SELECT stage, position FROM "Lead" GROUP BY 1, 2 HAVING COUNT(*) > 1
+    ) t`);
+  check("Kanban positions are unique within each stage", positionClashes === 0);
+
+  // Stored as UTC wall-clock; the session runs in Manila, so compare in UTC.
+  const futureCrm = await scalar(`
+    WITH now_utc AS (SELECT now() AT TIME ZONE 'UTC' AS t)
+    SELECT (
+      (SELECT COUNT(*) FROM "Lead", now_utc WHERE "createdAt" > t OR "wonAt" > t OR "lostAt" > t) +
+      (SELECT COUNT(*) FROM "Activity", now_utc WHERE "createdAt" > t OR "completedAt" > t) +
+      (SELECT COUNT(*) FROM "Ticket", now_utc
+        WHERE "createdAt" > t OR "firstResponseAt" > t OR "resolvedAt" > t OR "closedAt" > t) +
+      (SELECT COUNT(*) FROM "TicketComment", now_utc WHERE "createdAt" > t)
+    )::int AS value`);
+  check("No CRM event is dated in the future", futureCrm === 0);
+
+  const tickets = await prisma.ticket.findMany({
+    select: {
+      ticketNumber: true,
+      priority: true,
+      status: true,
+      createdAt: true,
+      slaDueAt: true,
+      firstResponseAt: true,
+      resolvedAt: true,
+      closedAt: true,
+      customerId: true,
+      order: { select: { customerId: true } },
+      comments: {
+        where: { isInternal: false },
+        orderBy: { createdAt: "asc" },
+        take: 1,
+        select: { createdAt: true },
+      },
+    },
+  });
+  const slaWrong = tickets.filter(
+    (ticket) =>
+      addBusinessHours(ticket.createdAt, SLA_HOURS[ticket.priority]).getTime() !==
+      ticket.slaDueAt.getTime(),
+  );
+  check(
+    "Ticket SLA targets are the priority's business hours from creation",
+    slaWrong.length === 0,
+    slaWrong.map((t) => t.ticketNumber).join(", "),
+  );
+  const responseWrong = tickets.filter(
+    (ticket) =>
+      (ticket.firstResponseAt?.getTime() ?? null) !==
+      (ticket.comments[0]?.createdAt.getTime() ?? null),
+  );
+  check(
+    "First response is the first reply the customer could see",
+    responseWrong.length === 0,
+    responseWrong.map((t) => t.ticketNumber).join(", "),
+  );
+  const lifecycleWrong = tickets.filter((ticket) => {
+    const finished = ticket.status === "RESOLVED" || ticket.status === "CLOSED";
+    if (finished !== (ticket.resolvedAt !== null)) return true;
+    if ((ticket.status === "CLOSED") !== (ticket.closedAt !== null)) return true;
+    return (
+      ticket.closedAt !== null && ticket.resolvedAt !== null && ticket.closedAt < ticket.resolvedAt
+    );
+  });
+  check("Ticket timestamps match their status", lifecycleWrong.length === 0);
+  const foreignOrders = tickets.filter(
+    (ticket) => ticket.order && ticket.order.customerId !== ticket.customerId,
+  );
+  check("A ticket's order belongs to the ticket's customer", foreignOrders.length === 0);
+
+  const now = new Date();
+  const openTickets = tickets.filter((t) => !t.resolvedAt);
+  const breached = openTickets.filter((t) => t.slaDueAt < now).length;
+  check(
+    `Open tickets span the SLA clock: ${breached} breached, ${openTickets.length - breached} within target`,
+    breached > 0 && openTickets.length - breached > 0,
+  );
+
+  const openActivities = await prisma.activity.count({ where: { status: "OPEN" } });
+  const overdue = await prisma.activity.count({ where: { status: "OPEN", dueAt: { lt: now } } });
+  check(
+    `Overdue work is the exception: ${overdue} of ${openActivities} open activities`,
+    overdue > 0 && overdue * 4 < openActivities,
+  );
+
+  // Recompute every segment inside a transaction that is always rolled back:
+  // if the rules would move anybody, the stored segments are stale.
+  let segmentDrift = -1;
+  await prisma
+    .$transaction(async (tx) => {
+      segmentDrift = (await recomputeSegments(tx, now)).changed;
+      throw new Error("rollback");
+    })
+    .catch(() => undefined);
+  check(
+    "Stored segments match the segment rules",
+    segmentDrift === 0,
+    `${segmentDrift} would move`,
+  );
 
   // ==================================================================== summary
   heading("Summary");

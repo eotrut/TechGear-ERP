@@ -99,13 +99,14 @@ The UI hides what a role cannot do, but hiding is never the control.
 
 ## Customers
 
-| Permission          | ADMIN | MANAGER | SALES | WAREHOUSE |
-| ------------------- | :---: | :-----: | :---: | :-------: |
-| `customers.view`    |   Y   |    Y    |   Y   |     Y     |
-| `customers.view360` |   Y   |    Y    |   Y   |     -     |
-| `customers.manage`  |   Y   |    Y    |   Y   |     -     |
-| `customers.delete`  |   Y   |    -    |   -   |     -     |
-| `customers.export`  |   Y   |    Y    |   -   |     -     |
+| Permission                  | ADMIN | MANAGER | SALES | WAREHOUSE |
+| --------------------------- | :---: | :-----: | :---: | :-------: |
+| `customers.view`            |   Y   |    Y    |   Y   |     Y     |
+| `customers.view360`         |   Y   |    Y    |   Y   |     -     |
+| `customers.manage`          |   Y   |    Y    |   Y   |     -     |
+| `customers.delete`          |   Y   |    -    |   -   |     -     |
+| `customers.export`          |   Y   |    Y    |   -   |     -     |
+| `customers.refreshSegments` |   Y   |    Y    |   -   |     -     |
 
 ## Leads
 
@@ -229,10 +230,12 @@ Rules are evaluated most specific first.
 | `/returns`                     | `returns.view`          |   Y   |    Y    |   Y   |     Y     |
 | `/warranty`                    | `warranty.view`         |   Y   |    Y    |   Y   |     Y     |
 | `/promos`                      | `promos.view`           |   Y   |    Y    |   Y   |     -     |
+| `/customers/new`               | `customers.manage`      |   Y   |    Y    |   Y   |     -     |
 | `/customers`                   | `customers.view`        |   Y   |    Y    |   Y   |     Y     |
 | `/leads`                       | `leads.view`            |   Y   |    Y    |   Y   |     -     |
 | `/activities/mine`             | `activities.manageOwn`  |   Y   |    Y    |   Y   |     Y     |
 | `/activities`                  | `activities.viewAll`    |   Y   |    Y    |   -   |     -     |
+| `/tickets/new`                 | `tickets.comment`       |   Y   |    Y    |   Y   |     -     |
 | `/tickets`                     | `tickets.view`          |   Y   |    Y    |   Y   |     -     |
 | `/purchasing/bills`            | `bills.view`            |   Y   |    Y    |   -   |     -     |
 | `/purchasing`                  | `purchasing.view`       |   Y   |    Y    |   -   |     Y     |
@@ -257,9 +260,9 @@ Rules are evaluated most specific first.
 
 ## Totals
 
-| Role      | Permissions held | of 94 |
+| Role      | Permissions held | of 95 |
 | --------- | ---------------: | ----: |
-| ADMIN     |               94 |  100% |
-| MANAGER   |               84 |   89% |
-| SALES     |               42 |   45% |
+| ADMIN     |               95 |  100% |
+| MANAGER   |               85 |   89% |
+| SALES     |               42 |   44% |
 | WAREHOUSE |               31 |   33% |

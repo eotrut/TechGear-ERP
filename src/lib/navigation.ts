@@ -11,6 +11,7 @@ import {
   Kanban,
   LayoutDashboard,
   LifeBuoy,
+  ListChecks,
   Package,
   Receipt,
   RotateCcw,
@@ -30,6 +31,7 @@ import {
 
 import { can } from "@/lib/rbac/can";
 import type { Permission } from "@/lib/rbac/matrix";
+import { permissionForRoute } from "@/lib/rbac/routes";
 
 export type NavItem = {
   label: string;
@@ -154,15 +156,37 @@ export const navigation: NavGroup[] = [
   {
     label: "Customers",
     items: [
-      { label: "Directory", href: "/customers", icon: Users, permission: "customers.view" },
-      { label: "Leads", href: "/leads", icon: Kanban, permission: "leads.view" },
       {
-        label: "Activities",
+        label: "Directory",
+        href: "/customers",
+        crumb: "Customers",
+        built: true,
+        icon: Users,
+        permission: "customers.view",
+      },
+      { label: "Leads", href: "/leads", built: true, icon: Kanban, permission: "leads.view" },
+      {
+        label: "My tasks",
         href: "/activities/mine",
-        icon: ClipboardList,
+        built: true,
+        icon: ListChecks,
         permission: "activities.manageOwn",
       },
-      { label: "Tickets", href: "/tickets", icon: LifeBuoy, permission: "tickets.view" },
+      {
+        label: "All activities",
+        href: "/activities",
+        crumb: "Activities",
+        built: true,
+        icon: ClipboardList,
+        permission: "activities.viewAll",
+      },
+      {
+        label: "Tickets",
+        href: "/tickets",
+        built: true,
+        icon: LifeBuoy,
+        permission: "tickets.view",
+      },
     ],
   },
   {
@@ -255,6 +279,10 @@ const segmentLabels: Record<string, string> = {
   bills: "Bills",
   users: "Users",
   mine: "My tasks",
+  customers: "Customers",
+  leads: "Leads",
+  activities: "Activities",
+  tickets: "Tickets",
 };
 
 /** Seeded ids look like prd_000001; cuids are a long opaque run of characters. */
@@ -269,18 +297,25 @@ export function labelForSegment(segment: string): string {
   return segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, " ");
 }
 
-export type Crumb = { label: string; href: string; isCurrent: boolean };
+export type Crumb = { label: string; href: string; isCurrent: boolean; reachable: boolean };
 
-export function buildCrumbs(pathname: string): Crumb[] {
+/**
+ * The trail for a pathname. `reachable` is false for a parent the role cannot
+ * open, such as All activities above My tasks for Sales, so the crumb renders
+ * as plain text instead of a link to a 403. Cosmetic, like the sidebar.
+ */
+export function buildCrumbs(pathname: string, role?: Role | null): Crumb[] {
   const segments = pathname.split("/").filter(Boolean);
 
   return segments.map((segment, index) => {
     const href = `/${segments.slice(0, index + 1).join("/")}`;
     const navItem = allItems.find((item) => item.href === href);
+    const permission = permissionForRoute(href);
     return {
       label: navItem ? (navItem.crumb ?? navItem.label) : labelForSegment(segment),
       href,
       isCurrent: index === segments.length - 1,
+      reachable: !permission || can(role, permission),
     };
   });
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import type { Role } from "@prisma/client";
 import { PanelLeft } from "lucide-react";
 
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
@@ -8,7 +9,7 @@ import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { UserMenu } from "@/components/layout/user-menu";
 import { Button } from "@/components/ui/button";
 
-export function TopBar({ user }: { user: { name: string; email: string; role: string } }) {
+export function TopBar({ user }: { user: { name: string; email: string; role: Role } }) {
   const { open } = useSidebar();
 
   return (
@@ -23,7 +24,7 @@ export function TopBar({ user }: { user: { name: string; email: string; role: st
         <PanelLeft aria-hidden />
       </Button>
 
-      <Breadcrumbs />
+      <Breadcrumbs role={user.role} />
 
       <div className="ml-auto flex items-center gap-1">
         <ThemeToggle />

@@ -5,13 +5,14 @@ keyboards, keycaps, switches, mice, headsets and streaming gear. It covers
 inventory, sales and POS, purchasing, CRM and finance reporting across seven
 sales channels.
 
-> **Status: Phase 5 of 8.** Tooling, the design system, the app shell, the
+> **Status: Phase 6 of 8.** Tooling, the design system, the app shell, the
 > database schema, the seeded demo data, authentication with role-based access
-> control and the audit log, the catalogue (products, variants, categories,
-> brands, suppliers, warehouses, CSV import and export, bulk pricing), and now
-> the stock ledger: stock levels, the movement history, adjustments,
-> inter-warehouse transfers, low-stock alerts and reorder suggestions. Sales,
-> POS, CRM, purchasing and reporting land in later phases. See
+> control and the audit log, the catalogue, the stock ledger (levels,
+> movements, adjustments, transfers, alerts and reorder suggestions), and now
+> the CRM: customers with Philippine addresses, Customer 360, the lead pipeline
+> kanban with conversion to customer, activities and "My tasks", support
+> tickets with SLA targets, and automatic customer segments. Sales, POS,
+> purchasing and reporting land in later phases. See
 > [docs/PLAN.md](docs/PLAN.md) for the plan and phase order.
 
 ## Setup
@@ -24,6 +25,10 @@ npx prisma migrate deploy    # create the schema
 npm run db:seed              # 12 months of realistic demo data
 npm run dev                  # http://localhost:3000
 ```
+
+If port 3000 is taken, run `npx next dev -p 3100` with `AUTH_URL` set to the
+same origin (`AUTH_URL=http://localhost:3100`). Auth.js rebuilds request URLs
+from it, so a mismatch sends the middleware's 403 rewrite to the wrong server.
 
 Product images are placeholders fetched once and committed. If you need to
 re-fetch them, run `npm run db:images`.
@@ -48,14 +53,14 @@ management page has a realistic mix.
 distributions are identical on every run, while dates are generated relative to
 today so the dashboard is never empty.
 
-|            |                                                                            |
-| ---------- | -------------------------------------------------------------------------- |
-| Catalogue  | 68 products, 153 variants, 12 brands, 8 categories, 2 warehouses           |
-| Sales      | ~1,050 orders over 12 months, all 7 channels, with 11.11 and 12.12 spikes  |
-| Stock      | ~3,300 ledger movements, 7 adjustments, 6 transfers in every status        |
-| Purchasing | 8 suppliers, 15 purchase orders across every status, receipts and bills    |
-| CRM        | 120 customers with real PH addresses, 30 leads, 20 tickets, 100 activities |
-| Finance    | 13 months of expenses, promos, returns, refunds, warranty claims           |
+|            |                                                                                                                    |
+| ---------- | ------------------------------------------------------------------------------------------------------------------ |
+| Catalogue  | 68 products, 153 variants, 12 brands, 8 categories, 2 warehouses                                                   |
+| Sales      | ~1,050 orders over 12 months, all 7 channels, with 11.11 and 12.12 spikes                                          |
+| Stock      | ~3,300 ledger movements, 7 adjustments, 6 transfers in every status                                                |
+| Purchasing | 8 suppliers, 15 purchase orders across every status, receipts and bills                                            |
+| CRM        | 120 customers with real PH addresses, 30 leads in all six stages, 20 tickets across the SLA clock, ~120 activities |
+| Finance    | 13 months of expenses, promos, returns, refunds, warranty claims                                                   |
 
 Verify it at any time:
 
@@ -63,31 +68,36 @@ Verify it at any time:
 npm run db:verify
 ```
 
-That runs 59 checks: SPEC section 7 targets, the stock ledger invariants from
+That runs 70 checks: SPEC section 7 targets, the stock ledger invariants from
 docs/PLAN.md section 6.5 (no negative stock at any point in the history, the
 running balance reconciles, moving-average cost matches the ledger), adjustment
 and transfer documents that match their movements exactly, order money
 integrity (totals equal line sums, VAT is exactly 12 percent of the VAT-inclusive
-total, payments reconcile), and content quality.
+total, payments reconcile), the CRM (every won lead has its customer, every
+ticket's SLA target is its priority's business hours from creation, first
+response is the first public reply, stored segments match the segment rules,
+nothing is dated in the future), and content quality.
 
 Every environment variable is validated on boot by `src/lib/env.ts`. The app
 refuses to start rather than failing later at the first query.
 
 ## Scripts
 
-| Command                                 | What it does                                             |
-| --------------------------------------- | -------------------------------------------------------- |
-| `npm run dev`                           | Dev server on :3000                                      |
-| `npm run build`                         | Production build. Fails on type or lint errors.          |
-| `npm run typecheck`                     | `tsc --noEmit`                                           |
-| `npm run lint`                          | ESLint                                                   |
-| `npm run format`                        | Prettier                                                 |
-| `npm run check:contrast`                | Verifies every theme token pair against WCAG thresholds  |
-| `npm run shoot`                         | Playwright CLI screenshot sweep; fails on console errors |
-| `npm test`                              | Unit tests, then the stock ledger against real Postgres  |
-| `npm run test:unit` / `test:db`         | Either half on its own                                   |
-| `npm run verify:rbac`                   | Drives a browser through all four roles                  |
-| `npm run db:up` / `db:down` / `db:logs` | Postgres via Docker Compose                              |
+| Command                                 | What it does                                              |
+| --------------------------------------- | --------------------------------------------------------- |
+| `npm run dev`                           | Dev server on :3000                                       |
+| `npm run build`                         | Production build. Fails on type or lint errors.           |
+| `npm run typecheck`                     | `tsc --noEmit`                                            |
+| `npm run lint`                          | ESLint                                                    |
+| `npm run format`                        | Prettier                                                  |
+| `npm run check:contrast`                | Verifies every theme token pair against WCAG thresholds   |
+| `npm run shoot`                         | Playwright CLI screenshot sweep; fails on console errors  |
+| `npm test`                              | Unit tests, then the stock ledger against real Postgres   |
+| `npm run test:unit` / `test:db`         | Either half on its own                                    |
+| `npm run verify:rbac`                   | Drives a browser through all four roles                   |
+| `npm run verify:crm`                    | Drags a lead, converts one, opens a ticket, checks the DB |
+| `npm run db:segments`                   | Recomputes customer segments; run it nightly              |
+| `npm run db:up` / `db:down` / `db:logs` | Postgres via Docker Compose                               |
 
 ## Tests
 
@@ -102,6 +112,14 @@ position to prove that ten buyers racing for five units sell exactly five, that
 two people pressing Receive add the stock once, and that transfers crossing in
 opposite directions never deadlock. Set `SKIP_DB_TESTS=1` to run only the unit
 project on a machine without Docker.
+
+The CRM has its own tests in both projects. The unit side covers the lead
+pipeline (one stage forward, one back, the missing step named on a skip),
+kanban positions and rebalancing, the segment rules, and the SLA clock across
+evenings and Sundays. The db side runs the lead and ticket services under their
+row locks: Sales refused on somebody else's lead, a column renumbered only when
+its gaps run out, two simultaneous conversions of one lead with exactly one
+winner, first response stamped by the first public reply and never by a note.
 
 ## Stack
 
@@ -191,6 +209,24 @@ everything else:
 - **Filters live in the URL.** A filtered product view is a link somebody can
   be sent. Column visibility is the one piece of table state kept per browser,
   because it is a personal preference rather than a shared view.
+- **The kanban is optimistic, the server is not.** A dropped card lands at
+  once and the server is told afterwards; a refusal snaps it back with the
+  reason. The pipeline allows one stage forward (a quote can be accepted
+  straight to Won) and one back, and the board dims the columns a card may not
+  enter while it is in the air. The server re-checks under a row lock.
+- **Card order is a float between neighbours.** A drop sends the ids of the
+  cards either side, not a number, and takes their midpoint, so one drop
+  writes one row. Only when a gap is exhausted is that one column renumbered.
+- **Won means converted.** Dropping a lead on Won opens the convert dialog:
+  it becomes a new customer from its own contact details or joins an existing
+  account, so every won deal has somewhere for its orders to go.
+- **Segments are stored, and recomputed by rules in one pure function.** VIP
+  is 20+ orders or top-decile lifetime value, Repeat 2+ orders, Dormant
+  nothing in 180 days (checked first), New otherwise. The seed, the refresh
+  button, `db:segments` and the order-completion hook all call the same code.
+- **SLA targets are business hours.** Urgent 4, High 8, Medium 24, Low 72,
+  counted Monday to Saturday, 9 to 6, Manila time, so an urgent ticket raised
+  on a Saturday evening is due Monday morning rather than overnight.
 - **CSV import is a two-step diff.** The file is planned into per-row create,
   update, unchanged and error outcomes and shown before anything is written,
   and the plan is recomputed on the server at commit time so a stale preview

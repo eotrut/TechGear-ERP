@@ -5,7 +5,7 @@ import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { TransfersTable } from "@/features/inventory/components/transfers-table";
-import { ViewTabs } from "@/features/inventory/components/view-tabs";
+import { ViewTabs } from "@/components/data-table/view-tabs";
 import { DOCUMENT_PAGE_SIZE, listTransfers } from "@/features/inventory/queries";
 import {
   TRANSFER_STATUSES,

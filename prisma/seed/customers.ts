@@ -28,17 +28,18 @@ const SOURCE_CHANNEL_WEIGHTS = [
   "B2B",
 ] as const;
 
-const TAG_POOL = [
+/** Tags a salesperson would actually put on each kind of account. */
+const INDIVIDUAL_TAGS = [
   "keyboard-enthusiast",
-  "bulk-buyer",
   "streamer",
-  "office-fitout",
   "student",
   "esports",
-  "repeat",
   "referral",
   "walk-in",
+  "custom-keycaps",
 ];
+
+const BUSINESS_TAGS = ["bulk-buyer", "office-fitout", "net-terms", "referral", "annual-refresh"];
 
 export function buildCustomers(ctx: SeedContext): void {
   const { tables } = ctx;
@@ -80,7 +81,10 @@ export function buildCustomers(ctx: SeedContext): void {
         : null,
       sourceChannel: pick(SOURCE_CHANNEL_WEIGHTS),
       segment: "NEW", // recomputed from real order history at the end of the seed
-      tags: faker.helpers.arrayElements(TAG_POOL, intBetween(0, 3)),
+      tags: faker.helpers.arrayElements(
+        isBusiness ? BUSINESS_TAGS : INDIVIDUAL_TAGS,
+        intBetween(0, isBusiness ? 2 : 3),
+      ),
       facebookHandle:
         !isBusiness && chance(0.35)
           ? `fb.com/${person.firstName.toLowerCase()}${intBetween(10, 999)}`

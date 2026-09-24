@@ -5,7 +5,7 @@ import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { AdjustmentsTable } from "@/features/inventory/components/adjustments-table";
-import { ListFilters } from "@/features/inventory/components/list-filters";
+import { ListFilters } from "@/components/data-table/list-filters";
 import {
   DOCUMENT_PAGE_SIZE,
   listAdjustments,

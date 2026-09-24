@@ -85,6 +85,7 @@ export const PERMISSIONS = [
   "customers.manage",
   "customers.delete",
   "customers.export",
+  "customers.refreshSegments",
 
   // Leads
   "leads.view",
@@ -237,6 +238,9 @@ export const MATRIX: Record<Permission, Partial<Record<Role, Access>>> = {
   "customers.manage": { ADMIN: "all", MANAGER: "all", SALES: "all" },
   "customers.delete": ADMIN_ONLY,
   "customers.export": ADMIN_AND_MANAGER,
+  // Segments recompute on their own (D-9); this is the on-demand refresh for
+  // the one input nothing triggers, a customer going quiet.
+  "customers.refreshSegments": ADMIN_AND_MANAGER,
 
   // ----------------------------------------------------------------- leads
   "leads.view": { ADMIN: "all", MANAGER: "all", SALES: "all" },
@@ -383,6 +387,7 @@ export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] =
       "customers.manage",
       "customers.delete",
       "customers.export",
+      "customers.refreshSegments",
     ],
   },
   {

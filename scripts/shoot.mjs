@@ -55,6 +55,22 @@ const PAGES = {
   "transfer-detail": { route: "/inventory/transfers/trf_000005", auth: true },
   "transfer-received": { route: "/inventory/transfers/trf_000004", auth: true },
   "transfer-new": { route: "/inventory/transfers/new?variantId=var_000006&qty=4", auth: true },
+  customers: { route: "/customers", auth: true },
+  "customers-vip": { route: "/customers?segment=VIP", auth: true },
+  // cus_000019 is a VIP business account with a year of orders and an open ticket.
+  "customer-360": { route: "/customers/cus_000019", auth: true },
+  "customer-new": { route: "/customers/new", auth: true },
+  "customer-edit": { route: "/customers/cus_000019/edit", auth: true },
+  leads: { route: "/leads", auth: true },
+  // led_000013 is quoted, so every stage action shows; led_000023 is won.
+  "lead-detail": { route: "/leads/led_000013", auth: true },
+  "lead-won": { route: "/leads/led_000023", auth: true },
+  "my-tasks": { route: "/activities/mine", auth: true },
+  activities: { route: "/activities", auth: true },
+  tickets: { route: "/tickets", auth: true },
+  // tkt_000016 is urgent and in progress, with an order, replies and a note.
+  "ticket-detail": { route: "/tickets/tkt_000016", auth: true },
+  "ticket-new": { route: "/tickets/new?customerId=cus_000019", auth: true },
 };
 
 /** Admin sees the most, so it is the account used for authenticated captures. */

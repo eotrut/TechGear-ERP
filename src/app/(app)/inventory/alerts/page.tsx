@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { AlertsTable } from "@/features/inventory/components/alerts-table";
-import { ListFilters } from "@/features/inventory/components/list-filters";
+import { ListFilters } from "@/components/data-table/list-filters";
 import { ReorderTable } from "@/features/inventory/components/reorder-table";
-import { ViewTabs } from "@/features/inventory/components/view-tabs";
+import { ViewTabs } from "@/components/data-table/view-tabs";
 import {
   ALERT_PAGE_SIZE,
   alertCounts,

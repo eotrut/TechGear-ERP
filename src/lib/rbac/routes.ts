@@ -42,10 +42,12 @@ export const ROUTE_RULES: RouteRule[] = [
   { prefix: "/warranty", permission: "warranty.view" },
   { prefix: "/promos", permission: "promos.view" },
 
+  { prefix: "/customers/new", permission: "customers.manage" },
   { prefix: "/customers", permission: "customers.view" },
   { prefix: "/leads", permission: "leads.view" },
   { prefix: "/activities/mine", permission: "activities.manageOwn" },
   { prefix: "/activities", permission: "activities.viewAll" },
+  { prefix: "/tickets/new", permission: "tickets.comment" },
   { prefix: "/tickets", permission: "tickets.view" },
 
   { prefix: "/purchasing/bills", permission: "bills.view" },

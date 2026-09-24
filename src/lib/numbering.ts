@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { manilaYear } from "@/lib/format";
 
 /**
- * Document numbers: ADJ-2026-0041, TRF-2026-0012.
+ * Document numbers: ADJ-2026-0041, TRF-2026-0012, TKT-2026-0021.
  *
  * Numbers are gapless and reset each Manila calendar year. The counter is a row
  * in AppSetting incremented with a single INSERT ... ON CONFLICT DO UPDATE,
@@ -22,8 +22,9 @@ import { manilaYear } from "@/lib/format";
  */
 
 const SEQUENCES = {
-  ADJ: Prisma.raw(`"StockAdjustment"`),
-  TRF: Prisma.raw(`"StockTransfer"`),
+  ADJ: { table: Prisma.raw(`"StockAdjustment"`), column: Prisma.raw(`reference`) },
+  TRF: { table: Prisma.raw(`"StockTransfer"`), column: Prisma.raw(`reference`) },
+  TKT: { table: Prisma.raw(`"Ticket"`), column: Prisma.raw(`"ticketNumber"`) },
 } as const;
 
 export type ReferenceKind = keyof typeof SEQUENCES;
@@ -43,13 +44,47 @@ export async function nextReference(
 
   // split_part rather than substring: with a bound parameter Postgres resolves
   // substring(text FROM $1) to the regex overload and quietly returns null.
+  const { table, column } = SEQUENCES[kind];
   const [floorRow] = await tx.$queryRaw<{ floor: number }[]>`
-    SELECT COALESCE(MAX(split_part(reference, '-', 3)::int), 0)::int AS floor
-    FROM ${SEQUENCES[kind]}
-    WHERE reference ~ ${`^${prefix}[0-9]+$`}
+    SELECT COALESCE(MAX(split_part(${column}, '-', 3)::int), 0)::int AS floor
+    FROM ${table}
+    WHERE ${column} ~ ${`^${prefix}[0-9]+$`}
   `;
   const floor = floorRow?.floor ?? 0;
 
+  return allocate(tx, key, floor, (n) => formatReference(kind, year, n));
+}
+
+/**
+ * Record codes that never reset: CUS-00121, LEAD-0031. Same counter row and
+ * the same floor on the table, without the year.
+ */
+const CODES = {
+  CUS: { table: Prisma.raw(`"Customer"`), width: 5 },
+  LEAD: { table: Prisma.raw(`"Lead"`), width: 4 },
+} as const;
+
+export type CodeKind = keyof typeof CODES;
+
+export function formatCode(kind: CodeKind, sequence: number): string {
+  return `${kind}-${String(sequence).padStart(CODES[kind].width, "0")}`;
+}
+
+export async function nextCode(tx: Prisma.TransactionClient, kind: CodeKind): Promise<string> {
+  const [floorRow] = await tx.$queryRaw<{ floor: number }[]>`
+    SELECT COALESCE(MAX(split_part(code, '-', 2)::int), 0)::int AS floor
+    FROM ${CODES[kind].table}
+    WHERE code ~ ${`^${kind}-[0-9]+$`}
+  `;
+  return allocate(tx, `sequence.${kind}`, floorRow?.floor ?? 0, (n) => formatCode(kind, n));
+}
+
+async function allocate(
+  tx: Prisma.TransactionClient,
+  key: string,
+  floor: number,
+  format: (n: number) => string,
+): Promise<string> {
   const [row] = await tx.$queryRaw<{ n: number }[]>`
     INSERT INTO "AppSetting" (key, value, "updatedAt")
     VALUES (${key}, to_jsonb(${floor + 1}::int), clock_timestamp() AT TIME ZONE 'UTC')
@@ -62,6 +97,6 @@ export async function nextReference(
     RETURNING (value #>> '{}')::int AS n
   `;
 
-  if (!row) throw new Error(`Could not allocate a ${kind} reference.`);
-  return formatReference(kind, year, row.n);
+  if (!row) throw new Error(`Could not allocate a number for ${key}.`);
+  return format(row.n);
 }

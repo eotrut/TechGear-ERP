@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { StockStatusBadge } from "@/features/inventory/components/badges";
 import { LedgerTable } from "@/features/inventory/components/ledger-table";
-import { ListFilters } from "@/features/inventory/components/list-filters";
+import { ListFilters } from "@/components/data-table/list-filters";
 import {
   LEDGER_PAGE_SIZE,
   ledgerVariant,

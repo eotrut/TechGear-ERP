@@ -108,11 +108,34 @@ const STOCK_ROUTES = [
   "/inventory/transfers/trf_000005",
 ];
 
+/** The CRM, Phase 6. Seeded ids: a VIP account, a quoted lead, an urgent ticket. */
+const CRM_ROUTES = [
+  "/customers",
+  "/customers/new",
+  "/customers/cus_000019",
+  "/customers/cus_000019/edit",
+  "/leads",
+  "/leads/led_000013",
+  "/activities/mine",
+  "/tickets",
+  "/tickets/new",
+  "/tickets/tkt_000016",
+];
+
 const EXPECTATIONS = [
   {
     role: "Admin",
     email: "admin@techgear.ph",
-    allowed: ["/dashboard", "/audit", "/settings", "/settings/users", "/account", ...STOCK_ROUTES],
+    allowed: [
+      "/dashboard",
+      "/audit",
+      "/settings",
+      "/settings/users",
+      "/account",
+      ...STOCK_ROUTES,
+      ...CRM_ROUTES,
+      "/activities",
+    ],
     forbidden: [],
     navExpect: [
       "Dashboard",
@@ -127,7 +150,7 @@ const EXPECTATIONS = [
   {
     role: "Manager",
     email: "manager@techgear.ph",
-    allowed: ["/dashboard", "/audit", "/account", ...STOCK_ROUTES],
+    allowed: ["/dashboard", "/audit", "/account", ...STOCK_ROUTES, ...CRM_ROUTES, "/activities"],
     forbidden: ["/settings", "/settings/users"],
     navExpect: ["Dashboard", "Audit log", "Stock", "Alerts", "Adjustments", "Transfers"],
     navAbsent: ["Settings"],
@@ -136,7 +159,7 @@ const EXPECTATIONS = [
     role: "Sales",
     email: "sales@techgear.ph",
     // Sales reads stock and the ledger, and nothing that moves or replans it.
-    allowed: ["/dashboard", "/account", "/inventory", "/inventory/ledger"],
+    allowed: ["/dashboard", "/account", "/inventory", "/inventory/ledger", ...CRM_ROUTES],
     forbidden: [
       "/audit",
       "/settings",
@@ -149,9 +172,11 @@ const EXPECTATIONS = [
       "/inventory/transfers",
       "/inventory/transfers/new",
       "/inventory/transfers/trf_000005",
+      // Everybody's activities are a manager's view.
+      "/activities",
     ],
-    navExpect: ["Dashboard", "Stock", "Ledger"],
-    navAbsent: ["Audit log", "Settings", "Adjustments", "Transfers"],
+    navExpect: ["Dashboard", "Stock", "Ledger", "Directory", "Leads", "My tasks", "Tickets"],
+    navAbsent: ["Audit log", "Settings", "Adjustments", "Transfers", "All activities"],
     content: [
       {
         route: "/inventory",
@@ -165,11 +190,33 @@ const EXPECTATIONS = [
   {
     role: "Warehouse",
     email: "warehouse@techgear.ph",
-    allowed: ["/dashboard", "/account", ...STOCK_ROUTES],
-    forbidden: ["/audit", "/settings", "/settings/users", "/expenses", "/leads", "/tickets"],
-    navExpect: ["Dashboard", "Stock", "Alerts", "Adjustments", "Transfers"],
-    navAbsent: ["Audit log", "Settings"],
+    allowed: ["/dashboard", "/account", ...STOCK_ROUTES, "/customers", "/activities/mine"],
+    forbidden: [
+      "/audit",
+      "/settings",
+      "/settings/users",
+      "/expenses",
+      "/leads",
+      "/leads/led_000013",
+      "/tickets",
+      "/tickets/new",
+      "/activities",
+      "/customers/new",
+      // Warehouse reads the directory but not lifetime value or purchase history.
+      "/customers/cus_000019",
+    ],
+    navExpect: [
+      "Dashboard",
+      "Stock",
+      "Alerts",
+      "Adjustments",
+      "Transfers",
+      "Directory",
+      "My tasks",
+    ],
+    navAbsent: ["Audit log", "Settings", "Leads", "Tickets", "All activities"],
     content: [
+      { route: "/customers", absent: ["Lifetime value"], present: ["Segment"] },
       { route: "/inventory", present: ["Value at cost", "Adjust stock", "New transfer"] },
       { route: "/inventory/transfers/trf_000005", present: ["Receive", "Recall"] },
     ],
