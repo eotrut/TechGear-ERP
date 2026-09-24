@@ -1,9 +1,11 @@
 import type { Role } from "@prisma/client";
 import {
   ArrowLeftRight,
+  BellRing,
   Boxes,
   ChartColumn,
   ClipboardList,
+  ClipboardPen,
   FileClock,
   FileText,
   Kanban,
@@ -95,22 +97,38 @@ export const navigation: NavGroup[] = [
   {
     label: "Inventory",
     items: [
-      { label: "Stock", href: "/inventory", icon: Boxes, permission: "inventory.viewLevels" },
+      {
+        label: "Stock",
+        href: "/inventory",
+        built: true,
+        icon: Boxes,
+        permission: "inventory.viewLevels",
+      },
       {
         label: "Alerts",
         href: "/inventory/alerts",
-        icon: ShieldCheck,
-        permission: "dashboard.viewOpsTiles",
+        built: true,
+        icon: BellRing,
+        permission: "inventory.viewAlerts",
       },
       {
         label: "Ledger",
         href: "/inventory/ledger",
+        built: true,
         icon: ScrollText,
         permission: "inventory.viewLedger",
       },
       {
+        label: "Adjustments",
+        href: "/inventory/adjustments",
+        built: true,
+        icon: ClipboardPen,
+        permission: "inventory.adjust",
+      },
+      {
         label: "Transfers",
         href: "/inventory/transfers",
+        built: true,
         icon: ArrowLeftRight,
         permission: "inventory.transfer",
       },
@@ -232,6 +250,7 @@ const segmentLabels: Record<string, string> = {
   receive: "Receive",
   alerts: "Alerts",
   ledger: "Ledger",
+  adjustments: "Adjustments",
   transfers: "Transfers",
   bills: "Bills",
   users: "Users",

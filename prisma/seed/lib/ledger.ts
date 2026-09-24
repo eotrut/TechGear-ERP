@@ -95,6 +95,38 @@ export class SeedLedger {
     return this.totalOnHand.get(variantId) ?? 0;
   }
 
+  /**
+   * The most that can be taken out of a position at `at` without the
+   * chronological replay ever going negative, and without cutting into units
+   * reserved by pending orders at the end.
+   *
+   * A movement stamped at `at` sorts after everything already dated at or
+   * before it, so it lowers the balance from that point on. The limit is
+   * therefore the lowest running balance from `at` to the end of the history,
+   * computed over the movements generated so far in true date order. Every
+   * back-dated outflow the seed adds after the main builders goes through
+   * this, which is what lets it date stock corrections across the whole year
+   * instead of only at "now".
+   */
+  headroom(variantId: string, warehouseId: string, at: Date): number {
+    const rows = this.movements
+      .filter((m) => m.variantId === variantId && m.warehouseId === warehouseId)
+      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime() || a.sequence - b.sequence);
+
+    const cutoff = at.getTime();
+    let balance = 0;
+    let lowest: number | null = null;
+    for (const movement of rows) {
+      if (lowest === null && movement.occurredAt.getTime() > cutoff) lowest = balance;
+      balance += movement.qtyDelta;
+      if (lowest !== null) lowest = Math.min(lowest, balance);
+    }
+    if (lowest === null) lowest = balance;
+
+    const unreserved = balance - this.getReserved(variantId, warehouseId);
+    return Math.max(0, Math.min(lowest, unreserved));
+  }
+
   /** Every (variant, warehouse) position that has ever been touched. */
   positions(): { variantId: string; warehouseId: string; onHand: number; reserved: number }[] {
     const rows: { variantId: string; warehouseId: string; onHand: number; reserved: number }[] = [];
@@ -368,6 +400,13 @@ export class SeedLedger {
         if (movement.orderItemId) {
           costByOrderItem.set(movement.orderItemId, avgBefore);
         }
+      } else if (
+        movement.qtyDelta > 0 &&
+        (movement.type === "TRANSFER_IN" || movement.type === "ADJUSTMENT")
+      ) {
+        // Cost neutral inflows arrive at the average of their own moment, not
+        // the average the builder happened to see when it generated them.
+        movement.unitCostCentavos = avgBefore;
       } else if (movement.type === "WRITE_OFF") {
         // Books the cost of the line it came from; on-hand is untouched.
         const sourceOrderItem = movement.returnItemId

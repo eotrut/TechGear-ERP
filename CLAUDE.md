@@ -65,10 +65,11 @@ npm run shoot            # Playwright CLI screenshot sweep, fails on console err
 npm run db:up            # start Postgres via Docker Compose
 npm run db:down          # stop it
 npm run db:seed          # deterministic 12 months of demo data
-npm run db:verify        # 54 integrity checks against the seeded data
+npm run db:verify        # 59 integrity checks against the seeded data
 npm run db:reset         # drop, re-migrate, re-seed
 npm run db:images        # fetch placeholder product images
-npm test                 # Vitest unit tests
+npm test                 # Vitest: unit project, then the db project (needs Postgres)
+npm run test:db          # stock ledger and concurrency tests only
 npm run verify:rbac      # drives a browser through all four roles
 npm run gen:permissions  # regenerate docs/permissions.md from the matrix
 ```
@@ -188,6 +189,32 @@ that honest, and breaking either one fails the seed loudly:
    throws if stock would ever go negative.
 
 After changing the seed, always run `npm run db:seed && npm run db:verify`.
+
+## Stock ledger
+
+`src/features/inventory/services/stock.ts` is the only writer of `StockLevel`.
+Orders, POS, receiving and returns must call `applyMovement`, `reserveStock`
+and `releaseStock`; never update `StockLevel` directly. Rules that keep the
+concurrency guarantees intact:
+
+- **Lock order is document, then variants.** Take the document lock first
+  (`nextReference` for a new document, or `SELECT ... FOR UPDATE` on the
+  order or transfer row), then call `lockVariants` with every variant the flow
+  touches, then apply movements. Never lock a document after a variant.
+- **Status changes lock the row and call `assertTransition`** with the entity's
+  transition map. Never assign a status directly.
+- **Wrap stock work in `runStockTransaction(db, ...)`**, which sets the
+  timeouts and retries once on deadlock or serialization failure. Write the
+  audit entry inside the same transaction with `tx`.
+- **Never bind a JS `Date` into raw SQL** against a `timestamp` column. The
+  database session runs in Asia/Manila and a timestamptz parameter shifts by
+  eight hours. Use `clock_timestamp() AT TIME ZONE 'UTC'`, or compare against a
+  UTC string cast with `::timestamp`, as `inventory/queries` does.
+- **Cast numeric parameters inside SQL functions** (`${n}::int`). An untyped
+  parameter can resolve to the wrong overload: `substring(text FROM $1)` picks
+  the regex form and quietly returns null.
+- The db test project creates `techgear_erp_test` and never touches the demo
+  data. Set `SKIP_DB_TESTS=1` to run only unit tests without Docker.
 
 ## Known issues
 

@@ -259,6 +259,61 @@ async function main(): Promise<void> {
   check(`Out-of-stock positions present for the alerts page: ${outOfStock}`, outOfStock > 0);
   check(`Low-stock positions present for the alerts page: ${lowStock}`, lowStock > 0);
 
+  // ======================================================== stock documents
+  heading("Adjustments and transfers");
+
+  const adjustmentDrift = await scalar(`
+    SELECT COUNT(*)::int AS value FROM "StockAdjustmentItem" ai
+    LEFT JOIN "StockMovement" sm ON sm."adjustmentItemId" = ai.id
+    GROUP BY ai.id, ai."qtyDelta"
+    HAVING COALESCE(SUM(sm."qtyDelta"), 0) <> ai."qtyDelta"
+        OR COUNT(sm.id) <> CASE WHEN ai."qtyDelta" = 0 THEN 0 ELSE 1 END`);
+  check(
+    "Every adjustment line that changed stock has exactly one matching ledger movement",
+    adjustmentDrift === 0,
+  );
+
+  const transferDrift = await scalar(`
+    SELECT COUNT(*)::int AS value FROM (
+      SELECT t.status, ti.qty, ti."qtyReceived",
+        COALESCE(SUM(-sm."qtyDelta") FILTER (WHERE sm.type = 'TRANSFER_OUT'), 0) AS sent,
+        COALESCE(SUM(sm."qtyDelta") FILTER (WHERE sm.type = 'TRANSFER_IN' AND sm."warehouseId" = t."toWarehouseId"), 0) AS arrived
+      FROM "StockTransferItem" ti
+      JOIN "StockTransfer" t ON t.id = ti."transferId"
+      LEFT JOIN "StockMovement" sm ON sm."transferItemId" = ti.id
+      GROUP BY ti.id, t.status, ti.qty, ti."qtyReceived"
+    ) lines
+    WHERE (status = 'RECEIVED'   AND (sent <> qty OR arrived <> "qtyReceived"))
+       OR (status = 'IN_TRANSIT' AND (sent <> qty OR arrived <> 0))
+       OR (status = 'DRAFT'      AND (sent <> 0 OR arrived <> 0))`);
+  check(
+    "Transfers moved exactly what their status says: out on dispatch, in on receipt, nothing as a draft",
+    transferDrift === 0,
+  );
+
+  const transferStatuses = await scalar(
+    `SELECT COUNT(DISTINCT status)::int AS value FROM "StockTransfer"`,
+  );
+  expectAtLeast("Distinct transfer statuses", transferStatuses, 4);
+
+  const badReferences = await scalar(`
+    SELECT COUNT(*)::int AS value FROM (
+      SELECT reference, "createdAt" FROM "StockAdjustment"
+      UNION ALL SELECT reference, "createdAt" FROM "StockTransfer"
+    ) docs
+    WHERE reference !~ '^(ADJ|TRF)-[0-9]{4}-[0-9]{4,}$'
+       OR split_part(reference, '-', 2)::int
+          <> EXTRACT(YEAR FROM ("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')::int`);
+  check("Document numbers carry the Manila year they were raised in", badReferences === 0);
+
+  const oversizedAdjustments = await scalar(
+    `SELECT COUNT(*)::int AS value FROM "StockAdjustmentItem" WHERE ABS("qtyDelta") > 25`,
+  );
+  check(
+    "Adjustment lines are shop-sized (no line moves more than 25 units)",
+    oversizedAdjustments === 0,
+  );
+
   // =============================================================== order money
   heading("Order and money integrity");
 

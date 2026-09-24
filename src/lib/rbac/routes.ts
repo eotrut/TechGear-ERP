@@ -31,7 +31,8 @@ export const ROUTE_RULES: RouteRule[] = [
 
   { prefix: "/inventory/adjustments", permission: "inventory.adjust" },
   { prefix: "/inventory/transfers", permission: "inventory.transfer" },
-  { prefix: "/inventory/alerts", permission: "dashboard.viewOpsTiles" },
+  { prefix: "/inventory/alerts", permission: "inventory.viewAlerts" },
+  { prefix: "/inventory/ledger", permission: "inventory.viewLedger" },
   { prefix: "/inventory", permission: "inventory.viewLevels" },
 
   { prefix: "/orders/new", permission: "orders.create" },

@@ -41,6 +41,20 @@ const PAGES = {
   brands: { route: "/brands", auth: true },
   suppliers: { route: "/suppliers", auth: true },
   warehouses: { route: "/warehouses", auth: true },
+  inventory: { route: "/inventory", auth: true },
+  "inventory-alerts": { route: "/inventory/alerts", auth: true },
+  "inventory-reorder": { route: "/inventory/alerts?view=reorder", auth: true },
+  "inventory-ledger": { route: "/inventory/ledger", auth: true },
+  "inventory-ledger-variant": { route: "/inventory/ledger?variantId=var_000001", auth: true },
+  adjustments: { route: "/inventory/adjustments", auth: true },
+  // adj_000007 is the seeded cycle count: counts, confirmations and write-offs.
+  "adjustment-detail": { route: "/inventory/adjustments/adj_000007", auth: true },
+  "adjustment-new": { route: "/inventory/adjustments/new?variantId=var_000006", auth: true },
+  transfers: { route: "/inventory/transfers", auth: true },
+  // trf_000005 is in transit (receive and recall actions); trf_000004 arrived short.
+  "transfer-detail": { route: "/inventory/transfers/trf_000005", auth: true },
+  "transfer-received": { route: "/inventory/transfers/trf_000004", auth: true },
+  "transfer-new": { route: "/inventory/transfers/new?variantId=var_000006&qty=4", auth: true },
 };
 
 /** Admin sees the most, so it is the account used for authenticated captures. */

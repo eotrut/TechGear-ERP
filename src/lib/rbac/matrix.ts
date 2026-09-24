@@ -43,6 +43,7 @@ export const PERMISSIONS = [
   // Inventory
   "inventory.viewLevels",
   "inventory.viewLedger",
+  "inventory.viewAlerts",
   "inventory.adjust",
   "inventory.transfer",
   "inventory.receiveTransfer",
@@ -189,6 +190,9 @@ export const MATRIX: Record<Permission, Partial<Record<Role, Access>>> = {
   // ------------------------------------------------------------- inventory
   "inventory.viewLevels": ALL_ROLES,
   "inventory.viewLedger": ALL_ROLES,
+  // Alerts and reorder suggestions drive purchasing and transfers, which are
+  // the stock roles' work. Sales sees stock levels, not the replenishment plan.
+  "inventory.viewAlerts": { ADMIN: "all", MANAGER: "all", WAREHOUSE: "all" },
   "inventory.adjust": { ADMIN: "all", MANAGER: "all", WAREHOUSE: "all" },
   "inventory.transfer": { ADMIN: "all", MANAGER: "all", WAREHOUSE: "all" },
   "inventory.receiveTransfer": { ADMIN: "all", MANAGER: "all", WAREHOUSE: "all" },
@@ -334,6 +338,7 @@ export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] =
     permissions: [
       "inventory.viewLevels",
       "inventory.viewLedger",
+      "inventory.viewAlerts",
       "inventory.adjust",
       "inventory.transfer",
       "inventory.receiveTransfer",

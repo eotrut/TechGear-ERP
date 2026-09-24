@@ -49,6 +49,7 @@ The UI hides what a role cannot do, but hiding is never the control.
 | ---------------------------- | :---: | :-----: | :---: | :-------: |
 | `inventory.viewLevels`       |   Y   |    Y    |   Y   |     Y     |
 | `inventory.viewLedger`       |   Y   |    Y    |   Y   |     Y     |
+| `inventory.viewAlerts`       |   Y   |    Y    |   -   |     Y     |
 | `inventory.adjust`           |   Y   |    Y    |   -   |     Y     |
 | `inventory.transfer`         |   Y   |    Y    |   -   |     Y     |
 | `inventory.receiveTransfer`  |   Y   |    Y    |   -   |     Y     |
@@ -207,57 +208,58 @@ The UI hides what a role cannot do, but hiding is never the control.
 The permission each route requires, checked by middleware before the page renders.
 Rules are evaluated most specific first.
 
-| Route                          | Permission               | ADMIN | MANAGER | SALES | WAREHOUSE |
-| ------------------------------ | ------------------------ | :---: | :-----: | :---: | :-------: |
-| `/settings/users`              | `users.view`             |   Y   |    -    |   -   |     -     |
-| `/settings`                    | `settings.manage`        |   Y   |    -    |   -   |     -     |
-| `/audit`                       | `audit.view`             |   Y   |    Y    |   -   |     -     |
-| `/products/import`             | `products.import`        |   Y   |    Y    |   -   |     -     |
-| `/products/new`                | `products.create`        |   Y   |    Y    |   -   |     -     |
-| `/products`                    | `products.view`          |   Y   |    Y    |   Y   |     Y     |
-| `/categories`                  | `taxonomy.view`          |   Y   |    Y    |   Y   |     Y     |
-| `/brands`                      | `taxonomy.view`          |   Y   |    Y    |   Y   |     Y     |
-| `/inventory/adjustments`       | `inventory.adjust`       |   Y   |    Y    |   -   |     Y     |
-| `/inventory/transfers`         | `inventory.transfer`     |   Y   |    Y    |   -   |     Y     |
-| `/inventory/alerts`            | `dashboard.viewOpsTiles` |   Y   |    Y    |   Y   |     Y     |
-| `/inventory`                   | `inventory.viewLevels`   |   Y   |    Y    |   Y   |     Y     |
-| `/orders/new`                  | `orders.create`          |   Y   |    Y    |   Y   |     -     |
-| `/orders`                      | `orders.view`            |   Y   |    Y    |   Y   |     Y     |
-| `/pos`                         | `pos.use`                |   Y   |    Y    |   Y   |     -     |
-| `/returns`                     | `returns.view`           |   Y   |    Y    |   Y   |     Y     |
-| `/warranty`                    | `warranty.view`          |   Y   |    Y    |   Y   |     Y     |
-| `/promos`                      | `promos.view`            |   Y   |    Y    |   Y   |     -     |
-| `/customers`                   | `customers.view`         |   Y   |    Y    |   Y   |     Y     |
-| `/leads`                       | `leads.view`             |   Y   |    Y    |   Y   |     -     |
-| `/activities/mine`             | `activities.manageOwn`   |   Y   |    Y    |   Y   |     Y     |
-| `/activities`                  | `activities.viewAll`     |   Y   |    Y    |   -   |     -     |
-| `/tickets`                     | `tickets.view`           |   Y   |    Y    |   Y   |     -     |
-| `/purchasing/bills`            | `bills.view`             |   Y   |    Y    |   -   |     -     |
-| `/purchasing`                  | `purchasing.view`        |   Y   |    Y    |   -   |     Y     |
-| `/suppliers`                   | `suppliers.view`         |   Y   |    Y    |   -   |     Y     |
-| `/warehouses`                  | `warehouses.view`        |   Y   |    Y    |   Y   |     Y     |
-| `/reports/inventory-valuation` | `reports.inventory`      |   Y   |    Y    |   -   |     Y     |
-| `/reports/stock-movement`      | `reports.inventory`      |   Y   |    Y    |   -   |     Y     |
-| `/reports/slow-moving`         | `reports.inventory`      |   Y   |    Y    |   -   |     Y     |
-| `/reports/gross-profit`        | `reports.finance`        |   Y   |    Y    |   -   |     -     |
-| `/reports/pl`                  | `reports.finance`        |   Y   |    Y    |   -   |     -     |
-| `/reports/vat`                 | `reports.finance`        |   Y   |    Y    |   -   |     -     |
-| `/reports/aging`               | `reports.aging`          |   Y   |    Y    |   -   |     -     |
-| `/reports/purchases`           | `reports.finance`        |   Y   |    Y    |   -   |     -     |
-| `/reports/customer-ltv`        | `reports.customerLtv`    |   Y   |    Y    |   Y   |     -     |
-| `/reports/sales`               | `reports.sales`          |   Y   |    Y    |   Y   |     -     |
-| `/reports`                     | `reports.sales`          |   Y   |    Y    |   Y   |     -     |
-| `/expenses`                    | `expenses.view`          |   Y   |    Y    |   -   |     -     |
-| `/dashboard`                   | `dashboard.view`         |   Y   |    Y    |   Y   |     Y     |
-| `/design`                      | `dashboard.view`         |   Y   |    Y    |   Y   |     Y     |
-| `/account`                     | `account.manageOwn`      |   Y   |    Y    |   Y   |     Y     |
-| `/notifications`               | `notifications.viewOwn`  |   Y   |    Y    |   Y   |     Y     |
+| Route                          | Permission              | ADMIN | MANAGER | SALES | WAREHOUSE |
+| ------------------------------ | ----------------------- | :---: | :-----: | :---: | :-------: |
+| `/settings/users`              | `users.view`            |   Y   |    -    |   -   |     -     |
+| `/settings`                    | `settings.manage`       |   Y   |    -    |   -   |     -     |
+| `/audit`                       | `audit.view`            |   Y   |    Y    |   -   |     -     |
+| `/products/import`             | `products.import`       |   Y   |    Y    |   -   |     -     |
+| `/products/new`                | `products.create`       |   Y   |    Y    |   -   |     -     |
+| `/products`                    | `products.view`         |   Y   |    Y    |   Y   |     Y     |
+| `/categories`                  | `taxonomy.view`         |   Y   |    Y    |   Y   |     Y     |
+| `/brands`                      | `taxonomy.view`         |   Y   |    Y    |   Y   |     Y     |
+| `/inventory/adjustments`       | `inventory.adjust`      |   Y   |    Y    |   -   |     Y     |
+| `/inventory/transfers`         | `inventory.transfer`    |   Y   |    Y    |   -   |     Y     |
+| `/inventory/alerts`            | `inventory.viewAlerts`  |   Y   |    Y    |   -   |     Y     |
+| `/inventory/ledger`            | `inventory.viewLedger`  |   Y   |    Y    |   Y   |     Y     |
+| `/inventory`                   | `inventory.viewLevels`  |   Y   |    Y    |   Y   |     Y     |
+| `/orders/new`                  | `orders.create`         |   Y   |    Y    |   Y   |     -     |
+| `/orders`                      | `orders.view`           |   Y   |    Y    |   Y   |     Y     |
+| `/pos`                         | `pos.use`               |   Y   |    Y    |   Y   |     -     |
+| `/returns`                     | `returns.view`          |   Y   |    Y    |   Y   |     Y     |
+| `/warranty`                    | `warranty.view`         |   Y   |    Y    |   Y   |     Y     |
+| `/promos`                      | `promos.view`           |   Y   |    Y    |   Y   |     -     |
+| `/customers`                   | `customers.view`        |   Y   |    Y    |   Y   |     Y     |
+| `/leads`                       | `leads.view`            |   Y   |    Y    |   Y   |     -     |
+| `/activities/mine`             | `activities.manageOwn`  |   Y   |    Y    |   Y   |     Y     |
+| `/activities`                  | `activities.viewAll`    |   Y   |    Y    |   -   |     -     |
+| `/tickets`                     | `tickets.view`          |   Y   |    Y    |   Y   |     -     |
+| `/purchasing/bills`            | `bills.view`            |   Y   |    Y    |   -   |     -     |
+| `/purchasing`                  | `purchasing.view`       |   Y   |    Y    |   -   |     Y     |
+| `/suppliers`                   | `suppliers.view`        |   Y   |    Y    |   -   |     Y     |
+| `/warehouses`                  | `warehouses.view`       |   Y   |    Y    |   Y   |     Y     |
+| `/reports/inventory-valuation` | `reports.inventory`     |   Y   |    Y    |   -   |     Y     |
+| `/reports/stock-movement`      | `reports.inventory`     |   Y   |    Y    |   -   |     Y     |
+| `/reports/slow-moving`         | `reports.inventory`     |   Y   |    Y    |   -   |     Y     |
+| `/reports/gross-profit`        | `reports.finance`       |   Y   |    Y    |   -   |     -     |
+| `/reports/pl`                  | `reports.finance`       |   Y   |    Y    |   -   |     -     |
+| `/reports/vat`                 | `reports.finance`       |   Y   |    Y    |   -   |     -     |
+| `/reports/aging`               | `reports.aging`         |   Y   |    Y    |   -   |     -     |
+| `/reports/purchases`           | `reports.finance`       |   Y   |    Y    |   -   |     -     |
+| `/reports/customer-ltv`        | `reports.customerLtv`   |   Y   |    Y    |   Y   |     -     |
+| `/reports/sales`               | `reports.sales`         |   Y   |    Y    |   Y   |     -     |
+| `/reports`                     | `reports.sales`         |   Y   |    Y    |   Y   |     -     |
+| `/expenses`                    | `expenses.view`         |   Y   |    Y    |   -   |     -     |
+| `/dashboard`                   | `dashboard.view`        |   Y   |    Y    |   Y   |     Y     |
+| `/design`                      | `dashboard.view`        |   Y   |    Y    |   Y   |     Y     |
+| `/account`                     | `account.manageOwn`     |   Y   |    Y    |   Y   |     Y     |
+| `/notifications`               | `notifications.viewOwn` |   Y   |    Y    |   Y   |     Y     |
 
 ## Totals
 
-| Role      | Permissions held | of 93 |
+| Role      | Permissions held | of 94 |
 | --------- | ---------------: | ----: |
-| ADMIN     |               93 |  100% |
-| MANAGER   |               83 |   89% |
+| ADMIN     |               94 |  100% |
+| MANAGER   |               84 |   89% |
 | SALES     |               42 |   45% |
-| WAREHOUSE |               30 |   32% |
+| WAREHOUSE |               31 |   33% |

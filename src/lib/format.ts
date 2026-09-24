@@ -63,6 +63,23 @@ export function formatRelative(value: Date | string | null): string {
   return formatDate(date);
 }
 
+const yearFormatter = new Intl.DateTimeFormat(LOCALE, { timeZone: TIME_ZONE, year: "numeric" });
+
+/**
+ * The calendar year in Manila. Document numbers reset each year, and a stock
+ * count at 7am on 1 January Manila time is still 31 December in UTC.
+ */
+export function manilaYear(value: Date | string): number {
+  return Number(yearFormatter.format(new Date(value)));
+}
+
+/** "+3" and "-2", for signed quantities where the sign is the information. */
+export function formatSigned(value: number): string {
+  if (value > 0) return `+${formatNumber(value)}`;
+  if (value < 0) return `-${formatNumber(Math.abs(value))}`;
+  return "0";
+}
+
 export function formatNumber(value: number): string {
   return new Intl.NumberFormat(LOCALE).format(value);
 }

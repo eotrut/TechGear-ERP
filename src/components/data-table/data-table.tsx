@@ -195,7 +195,10 @@ export function DataTable<T>({
         empty
       ) : (
         <>
-          <div className="overflow-x-auto rounded-lg border border-hairline">
+          {/* Relative, so absolutely positioned children such as sr-only
+              header labels are clipped by the scroller instead of widening
+              the page on a phone. */}
+          <div className="relative overflow-x-auto rounded-lg border border-hairline">
             <table className="w-full border-collapse text-body-sm">
               <thead>
                 {table.getHeaderGroups().map((headerGroup) => (
@@ -212,7 +215,7 @@ export function DataTable<T>({
                             active ? (dir === "asc" ? "ascending" : "descending") : undefined
                           }
                           className={cn(
-                            "px-3 py-2 text-left text-[11px] font-medium tracking-[0.06em] text-ink-subtle uppercase",
+                            "px-2 py-2 text-left text-[11px] font-medium tracking-[0.06em] text-ink-subtle uppercase sm:px-3",
                             meta.align === "right" && "text-right",
                             meta.className,
                           )}
@@ -222,7 +225,9 @@ export function DataTable<T>({
                               type="button"
                               onClick={() => toggleSort(meta.sortKey as string)}
                               className={cn(
-                                "inline-flex items-center gap-1 rounded-xs hover:text-ink",
+                                // Preflight resets text-transform on buttons, so
+                                // the header's small caps have to be restated.
+                                "inline-flex items-center gap-1 rounded-xs tracking-[0.06em] uppercase hover:text-ink",
                                 active && "text-ink",
                                 meta.align === "right" && "flex-row-reverse",
                               )}
@@ -283,7 +288,7 @@ export function DataTable<T>({
                           <td
                             key={cell.id}
                             className={cn(
-                              "px-3 py-2 align-middle",
+                              "px-2 py-2 align-middle sm:px-3",
                               meta.align === "right" && "text-right",
                               meta.className,
                             )}

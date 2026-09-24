@@ -186,6 +186,40 @@ describe("warehouse", () => {
   });
 });
 
+describe("inventory", () => {
+  it("lets only Admin, Manager and Warehouse move or replan stock", () => {
+    const stockWork: Permission[] = [
+      "inventory.adjust",
+      "inventory.transfer",
+      "inventory.receiveTransfer",
+      "inventory.setReorderLevels",
+      "inventory.viewAlerts",
+    ];
+    for (const permission of stockWork) {
+      expect(can("ADMIN", permission), permission).toBe(true);
+      expect(can("MANAGER", permission), permission).toBe(true);
+      expect(can("WAREHOUSE", permission), permission).toBe(true);
+      expect(can("SALES", permission), `SALES should not hold ${permission}`).toBe(false);
+    }
+  });
+
+  it("lets every role read stock levels and the ledger", () => {
+    for (const role of ROLES) {
+      expect(can(role, "inventory.viewLevels")).toBe(true);
+      expect(can(role, "inventory.viewLedger")).toBe(true);
+    }
+  });
+
+  it("gates every inventory route on the permission its page checks", () => {
+    expect(permissionForRoute("/inventory/alerts")).toBe("inventory.viewAlerts");
+    expect(permissionForRoute("/inventory/ledger")).toBe("inventory.viewLedger");
+    expect(permissionForRoute("/inventory/adjustments/new")).toBe("inventory.adjust");
+    expect(permissionForRoute("/inventory/adjustments/adj_000001")).toBe("inventory.adjust");
+    expect(permissionForRoute("/inventory/transfers/trf_000001")).toBe("inventory.transfer");
+    expect(permissionForRoute("/inventory")).toBe("inventory.viewLevels");
+  });
+});
+
 describe("every role", () => {
   it("can manage its own account and notifications", () => {
     for (const role of ROLES) {

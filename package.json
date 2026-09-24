@@ -22,6 +22,8 @@
     "db:verify": "tsx scripts/verify-seed.ts",
     "db:images": "tsx scripts/fetch-product-images.ts",
     "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:db": "vitest run --project db",
     "test:watch": "vitest",
     "gen:permissions": "tsx scripts/gen-permissions-doc.ts",
     "verify:rbac": "node scripts/verify-rbac-browser.mjs"

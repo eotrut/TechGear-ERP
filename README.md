@@ -5,12 +5,14 @@ keyboards, keycaps, switches, mice, headsets and streaming gear. It covers
 inventory, sales and POS, purchasing, CRM and finance reporting across seven
 sales channels.
 
-> **Status: Phase 4 of 8.** Tooling, the design system, the app shell, the
+> **Status: Phase 5 of 8.** Tooling, the design system, the app shell, the
 > database schema, the seeded demo data, authentication with role-based access
-> control and the audit log, and now the catalogue: products, variants,
-> categories, brands, suppliers and warehouses, with CSV import and export and
-> bulk price updates. Sales, POS, CRM, purchasing and reporting land in later
-> phases. See [docs/PLAN.md](docs/PLAN.md) for the plan and phase order.
+> control and the audit log, the catalogue (products, variants, categories,
+> brands, suppliers, warehouses, CSV import and export, bulk pricing), and now
+> the stock ledger: stock levels, the movement history, adjustments,
+> inter-warehouse transfers, low-stock alerts and reorder suggestions. Sales,
+> POS, CRM, purchasing and reporting land in later phases. See
+> [docs/PLAN.md](docs/PLAN.md) for the plan and phase order.
 
 ## Setup
 
@@ -50,7 +52,7 @@ today so the dashboard is never empty.
 | ---------- | -------------------------------------------------------------------------- |
 | Catalogue  | 68 products, 153 variants, 12 brands, 8 categories, 2 warehouses           |
 | Sales      | ~1,050 orders over 12 months, all 7 channels, with 11.11 and 12.12 spikes  |
-| Stock      | ~3,300 ledger movements, a cycle count, an inter-branch transfer           |
+| Stock      | ~3,300 ledger movements, 7 adjustments, 6 transfers in every status        |
 | Purchasing | 8 suppliers, 15 purchase orders across every status, receipts and bills    |
 | CRM        | 120 customers with real PH addresses, 30 leads, 20 tickets, 100 activities |
 | Finance    | 13 months of expenses, promos, returns, refunds, warranty claims           |
@@ -61,9 +63,10 @@ Verify it at any time:
 npm run db:verify
 ```
 
-That runs 54 checks: SPEC section 7 targets, the stock ledger invariants from
+That runs 59 checks: SPEC section 7 targets, the stock ledger invariants from
 docs/PLAN.md section 6.5 (no negative stock at any point in the history, the
-running balance reconciles, moving-average cost matches the ledger), order money
+running balance reconciles, moving-average cost matches the ledger), adjustment
+and transfer documents that match their movements exactly, order money
 integrity (totals equal line sums, VAT is exactly 12 percent of the VAT-inclusive
 total, payments reconcile), and content quality.
 
@@ -81,7 +84,24 @@ refuses to start rather than failing later at the first query.
 | `npm run format`                        | Prettier                                                 |
 | `npm run check:contrast`                | Verifies every theme token pair against WCAG thresholds  |
 | `npm run shoot`                         | Playwright CLI screenshot sweep; fails on console errors |
+| `npm test`                              | Unit tests, then the stock ledger against real Postgres  |
+| `npm run test:unit` / `test:db`         | Either half on its own                                   |
+| `npm run verify:rbac`                   | Drives a browser through all four roles                  |
 | `npm run db:up` / `db:down` / `db:logs` | Postgres via Docker Compose                              |
+
+## Tests
+
+`npm test` runs two Vitest projects. `unit` is pure logic: money, VAT, the
+permission matrix, CSV planning, and the stock rules (movement shapes,
+adjustment resolution, alert thresholds, reorder arithmetic, the transfer state
+machine). `db` runs the stock ledger against a real Postgres, because
+transactions, row locks and the races they prevent cannot be tested with mocks.
+It creates and migrates its own database, `techgear_erp_test`, so the demo data
+is never touched, and it fires concurrent transactions at the same stock
+position to prove that ten buyers racing for five units sell exactly five, that
+two people pressing Receive add the stock once, and that transfers crossing in
+opposite directions never deadlock. Set `SKIP_DB_TESTS=1` to run only the unit
+project on a machine without Docker.
 
 ## Stack
 
@@ -124,6 +144,34 @@ everything else:
   `StockLevel` is a transactionally-maintained cache. Overselling is blocked
   three ways: a conditional atomic `UPDATE` whose `WHERE` clause is the stock
   check, database `CHECK` constraints, and deterministic lock ordering.
+- **One lock per variant.** Every stock write locks the variant row first,
+  and flows that touch several variants lock them all up front in byte order.
+  That one lock guards the variant's positions in every warehouse and its
+  moving average, so two receipts cannot lose each other's update, and two
+  transfers of the same SKUs in opposite directions queue instead of
+  deadlocking. Deadlocks and serialization failures are still retried once.
+- **The ledger's clock is the database's, taken under the lock.** A movement's
+  timestamp is read after the variant lock is held and forced strictly later
+  than the variant's previous movement, so a transaction that waited can never
+  stamp itself earlier than the one it waited for, and the running balance
+  always reads in order. The session runs in Asia/Manila, so timestamps are
+  converted to UTC explicitly rather than passed as bound Date parameters.
+- **Status changes lock the document.** Dispatching, receiving and cancelling
+  a transfer start by locking its row and checking the transition map, so a
+  second click finds the transfer already received and is refused.
+- **Alerts are per warehouse; reorder suggestions are per company.** A shelf in
+  Cebu can be empty while Manila has plenty, which is a transfer, not a
+  purchase, so alerts are measured per position on available stock and offer
+  a prefilled transfer when another warehouse has units to spare. Suggestions
+  use the (s, nQ) reorder-point policy on stock plus open purchase orders, so
+  nothing already on order is suggested twice.
+- **Adjustments carry a reason and a direction.** Damage, loss, theft and
+  samples can only remove stock; theft and "other" require a note. A count is
+  entered as what is on the shelf and turned into a change under the row lock,
+  so a sale during the count cannot skew it.
+- **Document numbers are gapless and yearly** (ADJ-2026-0041). The counter row
+  is the first lock a stock transaction takes, which keeps lock order the same
+  everywhere, and a rolled-back save gives its number back.
 - **Moving-average cost is global per variant**, and COGS is snapshotted onto
   each order line at sale, so later receipts never rewrite historical margin.
 - **VAT-inclusive pricing**, the Philippine retail norm. The displayed price is

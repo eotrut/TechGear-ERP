@@ -96,37 +96,83 @@ function logout() {
  * Who should see what. "allowed" must render; "forbidden" must land on the 403
  * page rather than the real thing.
  */
+const STOCK_ROUTES = [
+  "/inventory",
+  "/inventory/alerts",
+  "/inventory/ledger",
+  "/inventory/adjustments",
+  "/inventory/adjustments/new",
+  "/inventory/transfers",
+  "/inventory/transfers/new",
+  // Seeded, deterministic: the in-transit transfer.
+  "/inventory/transfers/trf_000005",
+];
+
 const EXPECTATIONS = [
   {
     role: "Admin",
     email: "admin@techgear.ph",
-    allowed: ["/dashboard", "/audit", "/settings", "/settings/users", "/account"],
+    allowed: ["/dashboard", "/audit", "/settings", "/settings/users", "/account", ...STOCK_ROUTES],
     forbidden: [],
-    navExpect: ["Dashboard", "Settings", "Audit log"],
+    navExpect: [
+      "Dashboard",
+      "Settings",
+      "Audit log",
+      "Stock",
+      "Alerts",
+      "Adjustments",
+      "Transfers",
+    ],
   },
   {
     role: "Manager",
     email: "manager@techgear.ph",
-    allowed: ["/dashboard", "/audit", "/account"],
+    allowed: ["/dashboard", "/audit", "/account", ...STOCK_ROUTES],
     forbidden: ["/settings", "/settings/users"],
-    navExpect: ["Dashboard", "Audit log"],
+    navExpect: ["Dashboard", "Audit log", "Stock", "Alerts", "Adjustments", "Transfers"],
     navAbsent: ["Settings"],
   },
   {
     role: "Sales",
     email: "sales@techgear.ph",
-    allowed: ["/dashboard", "/account"],
-    forbidden: ["/audit", "/settings", "/settings/users", "/expenses", "/purchasing"],
-    navExpect: ["Dashboard"],
-    navAbsent: ["Audit log", "Settings"],
+    // Sales reads stock and the ledger, and nothing that moves or replans it.
+    allowed: ["/dashboard", "/account", "/inventory", "/inventory/ledger"],
+    forbidden: [
+      "/audit",
+      "/settings",
+      "/settings/users",
+      "/expenses",
+      "/purchasing",
+      "/inventory/alerts",
+      "/inventory/adjustments",
+      "/inventory/adjustments/new",
+      "/inventory/transfers",
+      "/inventory/transfers/new",
+      "/inventory/transfers/trf_000005",
+    ],
+    navExpect: ["Dashboard", "Stock", "Ledger"],
+    navAbsent: ["Audit log", "Settings", "Adjustments", "Transfers"],
+    content: [
+      {
+        route: "/inventory",
+        // Cost is stripped on the server for roles without products.viewCost.
+        absent: ["Value at cost", "Adjust stock", "New transfer"],
+        present: ["Available"],
+      },
+      { route: "/inventory/ledger", absent: ["Unit cost"], present: ["Balance"] },
+    ],
   },
   {
     role: "Warehouse",
     email: "warehouse@techgear.ph",
-    allowed: ["/dashboard", "/account"],
+    allowed: ["/dashboard", "/account", ...STOCK_ROUTES],
     forbidden: ["/audit", "/settings", "/settings/users", "/expenses", "/leads", "/tickets"],
-    navExpect: ["Dashboard"],
+    navExpect: ["Dashboard", "Stock", "Alerts", "Adjustments", "Transfers"],
     navAbsent: ["Audit log", "Settings"],
+    content: [
+      { route: "/inventory", present: ["Value at cost", "Adjust stock", "New transfer"] },
+      { route: "/inventory/transfers/trf_000005", present: ["Receive", "Recall"] },
+    ],
   },
 ];
 
@@ -185,6 +231,18 @@ for (const expectation of EXPECTATIONS) {
     goto(`${BASE_URL}${route}`);
     const text = pageText();
     check(`${route} is blocked with the 403 page`, text.includes(FORBIDDEN_MARKER));
+  }
+
+  for (const rule of expectation.content ?? []) {
+    goto(`${BASE_URL}${rule.route}`);
+    // innerText applies text-transform, so small-caps labels arrive uppercased.
+    const text = pageText().toLowerCase();
+    for (const phrase of rule.present ?? []) {
+      check(`${rule.route} shows "${phrase}"`, text.includes(phrase.toLowerCase()));
+    }
+    for (const phrase of rule.absent ?? []) {
+      check(`${rule.route} does not show "${phrase}"`, !text.includes(phrase.toLowerCase()));
+    }
   }
 
   // One 403 screenshot per role that has any, for the record.

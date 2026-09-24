@@ -6,7 +6,6 @@ loadEnv({ path: ".env", quiet: true });
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import type { AuditAction, NotificationType, Role } from "@prisma/client";
-import { faker } from "@faker-js/faker";
 
 import { buildAftersales } from "./aftersales";
 import { buildCatalogue, DEMO_PASSWORD } from "./catalogue";
@@ -15,6 +14,7 @@ import { buildCustomers } from "./customers";
 import { buildFinance } from "./finance";
 import { buildOpeningStock, buildPurchasing } from "./purchasing";
 import { buildSales } from "./sales";
+import { buildStockCorrections } from "./stock";
 import { emptyTables, type SeedContext } from "./lib/context";
 import { SeedLedger } from "./lib/ledger";
 import { addDays, atBusinessHour, chance, intBetween, pick, resetFaker } from "./lib/helpers";
@@ -92,169 +92,6 @@ async function main(): Promise<void> {
   console.log("  manager@techgear.ph    Manager");
   console.log("  sales@techgear.ph      Sales");
   console.log("  warehouse@techgear.ph  Warehouse");
-}
-
-/**
- * A handful of deliberate low and out-of-stock positions, plus one inter-branch
- * transfer, so the alerts page and the ledger have something real to show.
- * SPEC section 7 asks for "a few low and out-of-stock items".
- */
-function buildStockCorrections(ctx: SeedContext): void {
-  const { ledger, tables, warehouses } = ctx;
-  const main = warehouses[0];
-  const hub = warehouses[1];
-  if (!main || !hub) return;
-
-  const year = ctx.now.getUTCFullYear();
-  const adjustmentId = "adj_000001";
-  // Dated today so it is the last event in the ledger. The quantities below are
-  // derived from the final position, so anything happening after it would push
-  // the replay negative.
-  const adjustedAt = ctx.now;
-
-  tables.stockAdjustments.push({
-    id: adjustmentId,
-    reference: `ADJ-${year}-0001`,
-    warehouseId: main.id,
-    reason: "COUNT_CORRECTION",
-    note: "Quarterly cycle count, Manila main aisles A to D.",
-    actorId: ctx.users.warehouse.id,
-    createdAt: adjustedAt,
-  });
-
-  // Six SKUs driven to zero, ten driven under their reorder level.
-  const candidates = ctx.variants.filter((v) => ledger.getOnHand(v.id, main.id) > 0);
-  const outOfStock = faker.helpers.arrayElements(candidates, 6);
-  const remaining = candidates.filter((v) => !outOfStock.includes(v));
-  const lowStock = faker.helpers.arrayElements(remaining, 10);
-
-  let itemIndex = 0;
-
-  for (const variant of outOfStock) {
-    const onHand = ledger.getOnHand(variant.id, main.id);
-    const reserved = ledger.getReserved(variant.id, main.id);
-    // Never cut into stock already promised to a pending order.
-    const delta = -(onHand - reserved);
-    if (delta >= 0) continue;
-
-    const itemId = `adi_${adjustmentId}_${itemIndex}`;
-    itemIndex += 1;
-
-    tables.stockAdjustmentItems.push({
-      id: itemId,
-      adjustmentId,
-      variantId: variant.id,
-      qtyDelta: delta,
-      countedQty: reserved,
-      note: "Count came up short, shrinkage written off.",
-    });
-
-    ledger.adjust({
-      variantId: variant.id,
-      warehouseId: main.id,
-      qtyDelta: delta,
-      reason: "COUNT_CORRECTION",
-      occurredAt: adjustedAt,
-      actorId: ctx.users.warehouse.id,
-      refs: { adjustmentItemId: itemId },
-    });
-  }
-
-  for (const variant of lowStock) {
-    const onHand = ledger.getOnHand(variant.id, main.id);
-    const reserved = ledger.getReserved(variant.id, main.id);
-    const target = Math.max(reserved, Math.max(1, Math.floor(variant.reorderLevel * 0.5)));
-    const delta = target - onHand;
-    if (delta >= 0) continue;
-
-    const itemId = `adi_${adjustmentId}_${itemIndex}`;
-    itemIndex += 1;
-
-    tables.stockAdjustmentItems.push({
-      id: itemId,
-      adjustmentId,
-      variantId: variant.id,
-      qtyDelta: delta,
-      countedQty: target,
-      note: "Damaged units removed from saleable stock.",
-    });
-
-    ledger.adjust({
-      variantId: variant.id,
-      warehouseId: main.id,
-      qtyDelta: delta,
-      reason: "DAMAGE",
-      occurredAt: adjustedAt,
-      actorId: ctx.users.warehouse.id,
-      refs: { adjustmentItemId: itemId },
-    });
-  }
-
-  // A completed transfer from Manila to Cebu, placed early in the window while
-  // opening stock is deep. Dating it recently would mean issuing units that
-  // later orders have already consumed, which the replay would reject.
-  const transferId = "trf_000001";
-  const transferredAt = atBusinessHour(addDays(ctx.windowStart, 24));
-  const transferVariants = faker.helpers
-    .arrayElements(ctx.variants, 5)
-    .filter((v) => ledger.getAvailable(v.id, main.id) > 10);
-
-  if (transferVariants.length > 0) {
-    tables.stockTransfers.push({
-      id: transferId,
-      reference: `TRF-${year}-0001`,
-      fromWarehouseId: main.id,
-      toWarehouseId: hub.id,
-      status: "RECEIVED",
-      note: "Rebalancing fast movers ahead of the Cebu weekend rush.",
-      actorId: ctx.users.warehouse.id,
-      shippedAt: transferredAt,
-      receivedAt: addDays(transferredAt, 2),
-      createdAt: transferredAt,
-      updatedAt: addDays(transferredAt, 2),
-    });
-
-    transferVariants.forEach((variant, index) => {
-      // Small and fixed, so it is comfortably covered by opening stock at the
-      // date the transfer actually happened.
-      const qty = Math.min(6, Math.floor(ledger.getAvailable(variant.id, main.id) / 8));
-      if (qty <= 0) return;
-
-      const itemId = `tri_${transferId}_${index}`;
-      tables.stockTransferItems.push({
-        id: itemId,
-        transferId,
-        variantId: variant.id,
-        qty,
-        qtyReceived: qty,
-      });
-
-      // Transfers are cost neutral: stock moves, the average does not.
-      ledger.issue({
-        variantId: variant.id,
-        warehouseId: main.id,
-        qty,
-        type: "TRANSFER_OUT",
-        reason: "TRANSFER",
-        occurredAt: transferredAt,
-        actorId: ctx.users.warehouse.id,
-        refs: { transferItemId: itemId },
-      });
-
-      ledger.receive({
-        variantId: variant.id,
-        warehouseId: hub.id,
-        qty,
-        unitCostCentavos: ledger.getAvgCost(variant.id),
-        type: "TRANSFER_IN",
-        reason: "TRANSFER",
-        occurredAt: addDays(transferredAt, 2),
-        actorId: ctx.users.warehouse.id,
-        recomputeAverage: false,
-        refs: { transferItemId: itemId },
-      });
-    });
-  }
 }
 
 /**
@@ -406,7 +243,7 @@ function buildOperationalRecords(ctx: SeedContext): void {
       row.onHand === 0 ? "OUT_OF_STOCK" : "LOW_STOCK",
       row.onHand === 0 ? `Out of stock: ${row.variant.sku}` : `Low stock: ${row.variant.sku}`,
       `${row.variant.name} is at ${row.onHand} units in ${main.code}, reorder level ${row.variant.reorderLevel}.`,
-      `/products/${row.variant.productId}/variants/${row.variant.id}`,
+      `/inventory/alerts?warehouseId=${main.id}`,
       "WAREHOUSE",
       addDays(ctx.now, -intBetween(0, 4)),
     );
@@ -513,6 +350,42 @@ function buildOperationalRecords(ctx: SeedContext): void {
       `Recorded stock adjustment ${adjustment.reference}.`,
       adjustment.createdAt as Date,
     );
+  }
+
+  for (const transfer of tables.stockTransfers) {
+    audit(
+      ctx.users.warehouse.id,
+      ctx.users.warehouse.email,
+      "CREATE",
+      "StockTransfer",
+      String(transfer.id),
+      transfer.shippedAt
+        ? `Created and dispatched ${transfer.reference}.`
+        : `Drafted ${transfer.reference}.`,
+      transfer.createdAt as Date,
+    );
+    if (transfer.status === "RECEIVED" && transfer.receivedAt) {
+      audit(
+        ctx.users.warehouse.id,
+        ctx.users.warehouse.email,
+        "STATUS_CHANGE",
+        "StockTransfer",
+        String(transfer.id),
+        `Received ${transfer.reference}.`,
+        transfer.receivedAt as Date,
+      );
+    }
+    if (transfer.status === "CANCELLED") {
+      audit(
+        ctx.users.warehouse.id,
+        ctx.users.warehouse.email,
+        "STATUS_CHANGE",
+        "StockTransfer",
+        String(transfer.id),
+        `Cancelled draft ${transfer.reference}.`,
+        transfer.updatedAt as Date,
+      );
+    }
   }
 
   for (const order of tables.orders.filter((o) => o.status === "REFUNDED").slice(0, 8)) {
