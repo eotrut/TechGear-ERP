@@ -34,11 +34,13 @@ function manilaAt(day: Date, hour: number, minute = 0): Date {
 
 /** A business-hours instant `days` from now, at a plausible meeting time. */
 function workday(ctx: SeedContext, days: number): Date {
-  return manilaAt(
-    addDays(ctx.now, days),
-    pick([9, 10, 10, 11, 13, 14, 15, 16]),
-    pick([0, 0, 15, 30, 45]),
-  );
+  const hour = pick([9, 10, 10, 11, 13, 14, 15, 16]);
+  const minute = pick([0, 0, 15, 30, 45]);
+  const at = manilaAt(addDays(ctx.now, days), hour, minute);
+  // "Due today" means still ahead. Seeded late in the afternoon, a 10:00 slot
+  // has already passed, and the demo would open with a pile of overdue work.
+  if (days >= 0 && at <= ctx.now) return manilaAt(addDays(ctx.now, days + 1), hour, minute);
+  return at;
 }
 
 // ---------------------------------------------------------------- vocabulary

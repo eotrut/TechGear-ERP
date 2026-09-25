@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { manilaYear } from "@/lib/format";
 
 /**
- * Document numbers: ADJ-2026-0041, TRF-2026-0012, TKT-2026-0021.
+ * Document numbers: ADJ-2026-0041, TRF-2026-0012, TKT-2026-0021, SO-2026-004182.
  *
  * Numbers are gapless and reset each Manila calendar year. The counter is a row
  * in AppSetting incremented with a single INSERT ... ON CONFLICT DO UPDATE,
@@ -22,15 +22,19 @@ import { manilaYear } from "@/lib/format";
  */
 
 const SEQUENCES = {
-  ADJ: { table: Prisma.raw(`"StockAdjustment"`), column: Prisma.raw(`reference`) },
-  TRF: { table: Prisma.raw(`"StockTransfer"`), column: Prisma.raw(`reference`) },
-  TKT: { table: Prisma.raw(`"Ticket"`), column: Prisma.raw(`"ticketNumber"`) },
+  ADJ: { table: Prisma.raw(`"StockAdjustment"`), column: Prisma.raw(`reference`), width: 4 },
+  TRF: { table: Prisma.raw(`"StockTransfer"`), column: Prisma.raw(`reference`), width: 4 },
+  TKT: { table: Prisma.raw(`"Ticket"`), column: Prisma.raw(`"ticketNumber"`), width: 4 },
+  // Sales orders run to thousands a year, so they carry six digits.
+  SO: { table: Prisma.raw(`"Order"`), column: Prisma.raw(`"orderNumber"`), width: 6 },
+  RMA: { table: Prisma.raw(`"Return"`), column: Prisma.raw(`"rmaNumber"`), width: 4 },
+  WC: { table: Prisma.raw(`"WarrantyClaim"`), column: Prisma.raw(`"claimNumber"`), width: 4 },
 } as const;
 
 export type ReferenceKind = keyof typeof SEQUENCES;
 
 export function formatReference(kind: ReferenceKind, year: number, sequence: number): string {
-  return `${kind}-${year}-${String(sequence).padStart(4, "0")}`;
+  return `${kind}-${year}-${String(sequence).padStart(SEQUENCES[kind].width, "0")}`;
 }
 
 export async function nextReference(

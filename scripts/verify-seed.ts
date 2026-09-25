@@ -225,7 +225,9 @@ async function main(): Promise<void> {
   const soldUnits = await scalar(`
     SELECT COALESCE(SUM(oi.qty), 0)::int AS value
     FROM "OrderItem" oi JOIN "Order" o ON o.id = oi."orderId"
-    WHERE o.status IN ('PAID','PACKED','SHIPPED','DELIVERED','COMPLETED','REFUNDED')`);
+    WHERE o.status IN ('PAID','PACKED','SHIPPED','DELIVERED','COMPLETED','REFUNDED')
+       -- Cancelled after payment: the SALE stands and a RETURN put the goods back.
+       OR (o.status = 'CANCELLED' AND o."paidAt" IS NOT NULL)`);
   const saleMovementUnits = await scalar(`
     SELECT COALESCE(-SUM("qtyDelta"), 0)::int AS value FROM "StockMovement" WHERE type = 'SALE'`);
   check(
@@ -375,6 +377,15 @@ async function main(): Promise<void> {
     ) t`);
   check("Recorded payments sum to the order's amount paid", paymentMismatch === 0);
 
+  // The settlement rules in order-rules.ts: one cash tender, and COD never split.
+  const badSplits = await scalar(`
+    SELECT COUNT(*)::int AS value FROM (
+      SELECT "orderId" FROM "Payment" GROUP BY "orderId"
+      HAVING COUNT(*) FILTER (WHERE method = 'CASH') > 1
+          OR (COUNT(*) > 1 AND bool_or(method = 'COD'))
+    ) t`);
+  check("Split payments follow the settlement rules", badSplits === 0);
+
   const unpaidRealised = await scalar(`
     SELECT COUNT(*)::int AS value FROM "Order"
     WHERE status IN ('PAID','PACKED','SHIPPED','DELIVERED','COMPLETED')
@@ -383,8 +394,37 @@ async function main(): Promise<void> {
 
   const unpaidDraft = await scalar(`
     SELECT COUNT(*)::int AS value FROM "Order"
-    WHERE status IN ('DRAFT','PENDING','CANCELLED') AND "amountPaidCentavos" <> 0`);
-  check("Draft, pending and cancelled orders carry no payment", unpaidDraft === 0);
+    WHERE status IN ('DRAFT','PENDING') AND "amountPaidCentavos" <> 0`);
+  check("Draft and pending orders carry no payment", unpaidDraft === 0);
+
+  // Cancelling a paid order refunds it in full, so what it keeps is zero.
+  const cancelledKeepsMoney = await scalar(`
+    SELECT COUNT(*)::int AS value FROM "Order"
+    WHERE status = 'CANCELLED' AND "amountPaidCentavos" <> "amountRefundedCentavos"`);
+  check("Cancelled orders keep no money", cancelledKeepsMoney === 0);
+
+  const overRefunded = await scalar(`
+    SELECT COUNT(*)::int AS value FROM "Order" WHERE "amountRefundedCentavos" > "amountPaidCentavos"`);
+  check("No order is refunded more than was paid", overRefunded === 0);
+
+  const refundMismatch = await scalar(`
+    SELECT COUNT(*)::int AS value FROM (
+      SELECT o.id FROM "Order" o LEFT JOIN "Refund" r ON r."orderId" = o.id
+      GROUP BY o.id, o."amountRefundedCentavos"
+      HAVING o."amountRefundedCentavos" <> COALESCE(SUM(r."amountCentavos"), 0)
+    ) t`);
+  check("Refund rows sum to each order's amount refunded", refundMismatch === 0);
+
+  // Decision D-19: refunded means the money or every unit went back.
+  const looseRefunded = await scalar(`
+    SELECT COUNT(*)::int AS value FROM (
+      SELECT o.id FROM "Order" o JOIN "OrderItem" oi ON oi."orderId" = o.id
+      WHERE o.status = 'REFUNDED'
+      GROUP BY o.id, o."amountPaidCentavos", o."amountRefundedCentavos"
+      HAVING o."amountRefundedCentavos" < o."amountPaidCentavos"
+         AND SUM(oi."qtyReturned") < SUM(oi.qty)
+    ) t`);
+  check("Refunded orders gave back all the money or every unit", looseRefunded === 0);
 
   const negativeMoney = await scalar(`
     SELECT (
@@ -405,7 +445,9 @@ async function main(): Promise<void> {
 
   const marginBreaches = await scalar(`
     SELECT COUNT(*)::int AS value FROM "Order"
-    WHERE status = 'COMPLETED' AND "costTotalCentavos" > "totalCentavos"`);
+    WHERE status = 'COMPLETED' AND "costTotalCentavos" > "totalCentavos"
+      -- A warranty replacement is a zero-value order by design (D-20).
+      AND id NOT IN (SELECT "replacementOrderId" FROM "WarrantyClaim" WHERE "replacementOrderId" IS NOT NULL)`);
   check(
     `Completed orders are not sold below cost: ${marginBreaches} breaches`,
     marginBreaches === 0,
@@ -423,6 +465,50 @@ async function main(): Promise<void> {
       HAVING p."usageCount" <> COUNT(r.id)
     ) t`);
   check("Promo usage counts match actual redemptions", promoMismatch === 0);
+
+  const cancelledRedemptions = await scalar(`
+    SELECT COUNT(*)::int AS value FROM "PromoRedemption" r
+    JOIN "Order" o ON o.id = r."orderId" WHERE o.status = 'CANCELLED'`);
+  check("Cancelled orders have given their promo use back", cancelledRedemptions === 0);
+
+  const outOfWindow = await scalar(`
+    SELECT COUNT(*)::int AS value FROM "PromoRedemption" r
+    JOIN "Order" o ON o.id = r."orderId" JOIN "Promo" p ON p.id = r."promoId"
+    WHERE o."createdAt" < p."startsAt" OR o."createdAt" > p."endsAt"`);
+  check("Every promo was redeemed inside its dates", outOfWindow === 0);
+
+  const overPromised = await scalar(`
+    SELECT COUNT(*)::int AS value FROM (
+      SELECT oi.id FROM "OrderItem" oi
+      JOIN "ReturnItem" ri ON ri."orderItemId" = oi.id
+      JOIN "Return" r ON r.id = ri."returnId"
+      WHERE r.status IN ('REQUESTED','APPROVED','RECEIVED')
+      GROUP BY oi.id, oi.qty, oi."qtyReturned"
+      HAVING oi."qtyReturned" + SUM(ri.qty) > oi.qty
+    ) t`);
+  check("Open returns never hold more units than are still out", overPromised === 0);
+
+  const unmovedReturns = await scalar(`
+    SELECT COUNT(*)::int AS value FROM "ReturnItem" ri
+    JOIN "Return" r ON r.id = ri."returnId"
+    WHERE r.status = 'COMPLETED'
+      AND NOT EXISTS (SELECT 1 FROM "StockMovement" m WHERE m."returnItemId" = ri.id)`);
+  check("Every completed return line moved stock or booked a loss", unmovedReturns === 0);
+
+  // SO, RMA and WC numbers restart each Manila year, from the day they were raised.
+  const wrongYear = await scalar(`
+    SELECT (
+      (SELECT COUNT(*) FROM "Order"
+        WHERE split_part("orderNumber", '-', 2)::int
+          <> EXTRACT(YEAR FROM ("createdAt" + interval '8 hours'))) +
+      (SELECT COUNT(*) FROM "Return"
+        WHERE split_part("rmaNumber", '-', 2)::int
+          <> EXTRACT(YEAR FROM ("requestedAt" + interval '8 hours'))) +
+      (SELECT COUNT(*) FROM "WarrantyClaim"
+        WHERE split_part("claimNumber", '-', 2)::int
+          <> EXTRACT(YEAR FROM ("submittedAt" + interval '8 hours')))
+    )::int AS value`);
+  check("Sales document numbers carry the year they were raised in", wrongYear === 0);
 
   // ================================================================== content
   heading("Content quality");

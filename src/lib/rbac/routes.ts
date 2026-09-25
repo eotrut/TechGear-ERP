@@ -38,8 +38,11 @@ export const ROUTE_RULES: RouteRule[] = [
   { prefix: "/orders/new", permission: "orders.create" },
   { prefix: "/orders", permission: "orders.view" },
   { prefix: "/pos", permission: "pos.use" },
+  { prefix: "/returns/new", permission: "returns.create" },
   { prefix: "/returns", permission: "returns.view" },
+  { prefix: "/warranty/new", permission: "warranty.create" },
   { prefix: "/warranty", permission: "warranty.view" },
+  { prefix: "/print", permission: "orders.print" },
   { prefix: "/promos", permission: "promos.view" },
 
   { prefix: "/customers/new", permission: "customers.manage" },

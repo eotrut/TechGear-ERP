@@ -1,8 +1,10 @@
 import { faker } from "@faker-js/faker";
 import type { OrderStatus, PaymentMethod, SalesChannel } from "@prisma/client";
 
-import { allocateCentavos, applyBps, pesosToCentavos } from "../../src/lib/money";
-import { vatFromGross } from "../../src/lib/vat";
+import { priceOrder } from "../../src/features/orders/services/pricing";
+import { manilaYear } from "../../src/lib/format";
+import { allocateCentavos, pesosToCentavos } from "../../src/lib/money";
+import { formatReference } from "../../src/lib/numbering";
 import type { SeedContext, VariantRef } from "./lib/context";
 import {
   addDays,
@@ -157,9 +159,41 @@ const PAYMENT_BY_CHANNEL: Record<SalesChannel, PaymentMethod[]> = {
   B2B: ["BANK_TRANSFER", "BANK_TRANSFER", "CARD"],
 };
 
+/** Midnight Manila on a calendar day, as an instant. */
+function manilaMidnight(year: number, month: number, day: number): Date {
+  return new Date(Date.UTC(year, month - 1, day) - 8 * 3_600_000);
+}
+
+/**
+ * The year a seasonal event falls in inside the seeded window: the most recent
+ * occurrence, which is where the sales calendar puts its spike.
+ */
+function eventYear(ctx: SeedContext, month: number, day: number): number {
+  const thisYear = ctx.now.getUTCFullYear();
+  return manilaMidnight(thisYear, month, day) <= ctx.now ? thisYear : thisYear - 1;
+}
+
+export type PromoWindow = { startsAt: Date; endsAt: Date };
+
 export function buildPromos(ctx: SeedContext): string[] {
   const { tables } = ctx;
-  const year = ctx.now.getUTCFullYear();
+  const always: PromoWindow = { startsAt: ctx.windowStart, endsAt: addDays(ctx.now, 45) };
+  // Event codes run around their event and then expire, so the promo list
+  // shows a real mix of live and finished campaigns.
+  const y11 = eventYear(ctx, 11, 11);
+  const y12 = eventYear(ctx, 12, 12);
+  const singles: PromoWindow = {
+    startsAt: manilaMidnight(y11, 11, 1),
+    endsAt: new Date(manilaMidnight(y11, 11, 16).getTime() - 1),
+  };
+  const double: PromoWindow = {
+    startsAt: manilaMidnight(y12, 12, 1),
+    endsAt: new Date(manilaMidnight(y12, 12, 16).getTime() - 1),
+  };
+  const pasko: PromoWindow = {
+    startsAt: manilaMidnight(y12, 11, 15),
+    endsAt: new Date(manilaMidnight(y12 + 1, 1, 1).getTime() - 1),
+  };
 
   const promos = [
     {
@@ -170,6 +204,7 @@ export function buildPromos(ctx: SeedContext): string[] {
       amountCentavos: null,
       min: 150000,
       limit: 500,
+      window: always,
     },
     {
       code: "SINGLES1111",
@@ -179,6 +214,7 @@ export function buildPromos(ctx: SeedContext): string[] {
       amountCentavos: null,
       min: 200000,
       limit: 800,
+      window: singles,
     },
     {
       code: "DOUBLE1212",
@@ -188,6 +224,7 @@ export function buildPromos(ctx: SeedContext): string[] {
       amountCentavos: null,
       min: 200000,
       limit: 800,
+      window: double,
     },
     {
       code: "PASKO500",
@@ -197,6 +234,7 @@ export function buildPromos(ctx: SeedContext): string[] {
       amountCentavos: 50000,
       min: 300000,
       limit: 300,
+      window: pasko,
     },
     {
       code: "FREESHIP",
@@ -206,6 +244,7 @@ export function buildPromos(ctx: SeedContext): string[] {
       amountCentavos: 15000,
       min: 100000,
       limit: null,
+      window: always,
     },
     {
       code: "BULK5",
@@ -215,6 +254,7 @@ export function buildPromos(ctx: SeedContext): string[] {
       amountCentavos: null,
       min: 2000000,
       limit: null,
+      window: always,
     },
   ] as const;
 
@@ -230,8 +270,8 @@ export function buildPromos(ctx: SeedContext): string[] {
       percentBps: promo.percentBps,
       amountCentavos: promo.amountCentavos,
       minSubtotalCentavos: promo.min,
-      startsAt: ctx.windowStart,
-      endsAt: addDays(ctx.now, 45),
+      startsAt: promo.window.startsAt,
+      endsAt: promo.window.endsAt,
       usageLimit: promo.limit,
       usageCount: 0,
       perCustomerLimit: promo.code === "BULK5" ? null : 3,
@@ -241,8 +281,6 @@ export function buildPromos(ctx: SeedContext): string[] {
     });
   });
 
-  // Keep the id list in sync with the summary label used in orders.
-  void year;
   return ids;
 }
 
@@ -269,8 +307,9 @@ export function buildSales(ctx: SeedContext): void {
   let paymentCounter = 0;
   let eventCounter = 0;
   const promoUsage = new Map<string, number>();
-
-  const year = ctx.now.getUTCFullYear();
+  const promoByCustomer = new Map<string, number>();
+  // Order numbers run per Manila calendar year, as the live numbering does.
+  const numberByYear = new Map<number, number>();
 
   for (let dayIndex = 0; dayIndex <= totalDays; dayIndex += 1) {
     const day = startOfDay(addDays(ctx.windowStart, dayIndex));
@@ -305,7 +344,13 @@ export function buildSales(ctx: SeedContext): void {
       const ageDays = Math.round((ctx.now.getTime() - placedAt.getTime()) / 86_400_000);
 
       const channel = weightedPick(CHANNEL_WEIGHTS);
-      const status = statusForAge(ageDays, channel);
+      const drawn = statusForAge(ageDays, channel);
+      // Marketplaces have already taken the order, so it never sits as a draft
+      // here (initialStatusFor in the order rules says the same).
+      const status =
+        drawn === "DRAFT" && (channel === "SHOPEE" || channel === "LAZADA" || channel === "TIKTOK")
+          ? "PENDING"
+          : drawn;
 
       // B2B always goes to a business account; POS is often a walk-in.
       const activeNow = customers.filter(
@@ -369,20 +414,33 @@ export function buildSales(ctx: SeedContext): void {
 
       let promoId: string | null = null;
       let promoCode: string | null = null;
-      let discount = 0;
+      let promoTerms: Parameters<typeof priceOrder>[0]["promo"] = null;
 
       const wantsPromo = isDoubleDay ? chance(0.55) : chance(0.09);
       if (wantsPromo && status !== "DRAFT") {
         const index = isBusiness ? 5 : isDoubleDay ? (month === 11 ? 1 : 2) : intBetween(0, 4);
         const candidateId = promoIds[index];
         const promo = promoRows[index];
-        if (candidateId && promo && subtotal >= (promo.minSubtotalCentavos ?? 0)) {
+        // The same rules the order service applies: inside its dates, over its
+        // minimum spend, and within its per-customer limit.
+        const usedByCustomer = customer
+          ? (promoByCustomer.get(`${candidateId}:${customer.id}`) ?? 0)
+          : 0;
+        if (
+          candidateId &&
+          promo &&
+          subtotal >= (promo.minSubtotalCentavos ?? 0) &&
+          placedAt >= new Date(promo.startsAt) &&
+          placedAt <= new Date(promo.endsAt) &&
+          (promo.perCustomerLimit == null || usedByCustomer < promo.perCustomerLimit)
+        ) {
           promoId = candidateId;
           promoCode = promo.code;
-          discount =
-            promo.type === "PERCENT"
-              ? applyBps(subtotal, promo.percentBps ?? 0)
-              : Math.min(promo.amountCentavos ?? 0, subtotal);
+          promoTerms = {
+            type: promo.type,
+            percentBps: promo.percentBps ?? null,
+            amountCentavos: promo.amountCentavos ?? null,
+          };
         }
       }
 
@@ -393,15 +451,18 @@ export function buildSales(ctx: SeedContext): void {
             ? pesosToCentavos(intBetween(0, 6) * 50)
             : pesosToCentavos(pick([0, 58, 79, 95, 120, 150, 180]));
 
-      const total = subtotal - discount + shipping;
-      const orderVat = vatFromGross(total);
-
-      // Discount is spread across lines by value so the lines still sum to the
-      // header, and VAT is allocated from the header for the same reason.
-      const lineDiscounts = allocateCentavos(discount, lineSubtotals);
-      const lineTotals = lineSubtotals.map((value, i) => value - (lineDiscounts[i] ?? 0));
-      const goodsVat = vatFromGross(lineTotals.reduce((sum, value) => sum + value, 0));
-      const lineVats = allocateCentavos(goodsVat, lineTotals);
+      // Priced by the function the order service uses, so seeded orders obey
+      // exactly the totals, discount and VAT rules a live order does.
+      const pricing = priceOrder({
+        lines: lines.map((line) => ({
+          unitPriceCentavos: line.variant.priceCentavos,
+          qty: line.qty,
+        })),
+        promo: promoTerms,
+        shippingCentavos: shipping,
+      });
+      const discount = pricing.discountCentavos;
+      const total = pricing.totalCentavos;
 
       // ------------------------------------------------------- stock effect
       const realised = isRealised(status);
@@ -431,6 +492,7 @@ export function buildSales(ctx: SeedContext): void {
 
         costTotal += unitCost * line.qty;
 
+        const priced = pricing.lines[i];
         return {
           id: itemId,
           orderId,
@@ -440,10 +502,10 @@ export function buildSales(ctx: SeedContext): void {
           qty: line.qty,
           qtyReturned: 0,
           unitPriceCentavos: line.variant.priceCentavos,
-          discountCentavos: lineDiscounts[i] ?? 0,
-          lineSubtotalCentavos: lineSubtotals[i] ?? 0,
-          vatCentavos: lineVats[i] ?? 0,
-          lineTotalCentavos: lineTotals[i] ?? 0,
+          discountCentavos: priced?.discountCentavos ?? 0,
+          lineSubtotalCentavos: priced?.lineSubtotalCentavos ?? 0,
+          vatCentavos: priced?.vatCentavos ?? 0,
+          lineTotalCentavos: priced?.lineTotalCentavos ?? 0,
           unitCostCentavos: unitCost,
         };
       });
@@ -467,7 +529,12 @@ export function buildSales(ctx: SeedContext): void {
 
       tables.orders.push({
         id: orderId,
-        orderNumber: `SO-${year}-${String(orderCounter).padStart(6, "0")}`,
+        orderNumber: (() => {
+          const year = manilaYear(placedAt);
+          const next = (numberByYear.get(year) ?? 0) + 1;
+          numberByYear.set(year, next);
+          return formatReference("SO", year, next);
+        })(),
         channel,
         status,
         customerId: customer?.id ?? null,
@@ -498,7 +565,7 @@ export function buildSales(ctx: SeedContext): void {
         subtotalCentavos: subtotal,
         discountCentavos: discount,
         shippingCentavos: shipping,
-        vatCentavos: orderVat,
+        vatCentavos: pricing.vatCentavos,
         totalCentavos: total,
         amountPaidCentavos: amountPaid,
         amountRefundedCentavos: 0,
@@ -536,10 +603,16 @@ export function buildSales(ctx: SeedContext): void {
         const splits = (channel === "POS" && chance(0.12)) || (isBusiness && chance(0.25)) ? 2 : 1;
         const amounts = splits === 1 ? [total] : allocateCentavos(total, [6, 4]);
 
+        let firstMethod: PaymentMethod | null = null;
         amounts.forEach((amount, i) => {
           if (amount <= 0) return;
           paymentCounter += 1;
-          const method = i === 0 ? pick(methods) : pick(methods.filter((m) => m !== "COD"));
+          // The live settlement rules: cash on delivery settles a whole order on
+          // its own, and cash is a single tender, so a split uses two methods.
+          const allowed =
+            amounts.length > 1 ? methods.filter((m) => m !== "COD" && m !== firstMethod) : methods;
+          const method = pick(allowed.length > 0 ? allowed : (["BANK_TRANSFER"] as const));
+          if (i === 0) firstMethod = method;
           const isCash = method === "CASH";
           // Cash tendered is rounded up to a note the customer would actually hand over.
           const tendered = isCash ? Math.ceil(amount / 10_000) * 10_000 : null;
@@ -560,16 +633,22 @@ export function buildSales(ctx: SeedContext): void {
       }
 
       // ------------------------------------------------------------- promo
-      if (promoId && realised) {
+      // A use is counted when the order is saved and given back on cancel,
+      // exactly as the order service does it.
+      if (promoId && status !== "CANCELLED") {
         tables.promoRedemptions.push({
           id: `prr_${orderId}`,
           promoId,
           orderId,
           customerId: customer?.id ?? null,
-          discountAppliedCentavos: discount,
+          discountAppliedCentavos: pricing.promoDiscountCentavos,
           createdAt: placedAt,
         });
         promoUsage.set(promoId, (promoUsage.get(promoId) ?? 0) + 1);
+        if (customer) {
+          const key = `${promoId}:${customer.id}`;
+          promoByCustomer.set(key, (promoByCustomer.get(key) ?? 0) + 1);
+        }
       }
 
       // Pending orders keep their reservation; cancelled ones give it back.

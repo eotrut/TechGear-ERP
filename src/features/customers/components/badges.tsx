@@ -1,4 +1,4 @@
-import type { CustomerSegment, CustomerType, OrderStatus } from "@prisma/client";
+import type { CustomerSegment, CustomerType } from "@prisma/client";
 
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 
@@ -29,22 +29,5 @@ export function CustomerTypeBadge({ type }: { type: CustomerType }) {
   return <StatusBadge>{type === "BUSINESS" ? "business" : "individual"}</StatusBadge>;
 }
 
-/**
- * Order status, shown on Customer 360 ahead of the orders module. Finished
- * sales are green, work in progress is blue, money going back is red.
- */
-const ORDER_TONE: Record<OrderStatus, StatusTone> = {
-  DRAFT: "neutral",
-  PENDING: "warning",
-  PAID: "info",
-  PACKED: "info",
-  SHIPPED: "info",
-  DELIVERED: "success",
-  COMPLETED: "success",
-  CANCELLED: "neutral",
-  REFUNDED: "critical",
-};
-
-export function OrderStatusBadge({ status }: { status: OrderStatus }) {
-  return <StatusBadge tone={ORDER_TONE[status]}>{status.toLowerCase()}</StatusBadge>;
-}
+/** Order status lives with the orders module; Customer 360 shows the same chip. */
+export { OrderStatusBadge } from "@/features/orders/components/badges";

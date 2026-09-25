@@ -146,11 +146,29 @@ export const navigation: NavGroup[] = [
   {
     label: "Sales",
     items: [
-      { label: "Orders", href: "/orders", icon: ShoppingCart, permission: "orders.view" },
+      {
+        label: "Orders",
+        href: "/orders",
+        built: true,
+        icon: ShoppingCart,
+        permission: "orders.view",
+      },
       { label: "Point of sale", href: "/pos", icon: Receipt, crumb: "POS", permission: "pos.use" },
-      { label: "Returns", href: "/returns", icon: RotateCcw, permission: "returns.view" },
-      { label: "Warranty", href: "/warranty", icon: ShieldCheck, permission: "warranty.view" },
-      { label: "Promos", href: "/promos", icon: Ticket, permission: "promos.view" },
+      {
+        label: "Returns",
+        href: "/returns",
+        built: true,
+        icon: RotateCcw,
+        permission: "returns.view",
+      },
+      {
+        label: "Warranty",
+        href: "/warranty",
+        built: true,
+        icon: ShieldCheck,
+        permission: "warranty.view",
+      },
+      { label: "Promos", href: "/promos", built: true, icon: Ticket, permission: "promos.view" },
     ],
   },
   {
@@ -283,6 +301,10 @@ const segmentLabels: Record<string, string> = {
   leads: "Leads",
   activities: "Activities",
   tickets: "Tickets",
+  orders: "Orders",
+  returns: "Returns",
+  warranty: "Warranty",
+  promos: "Promos",
 };
 
 /** Seeded ids look like prd_000001; cuids are a long opaque run of characters. */

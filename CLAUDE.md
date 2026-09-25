@@ -73,6 +73,7 @@ npm test                 # Vitest: unit project, then the db project (needs Post
 npm run test:db          # stock ledger and concurrency tests only
 npm run verify:rbac      # drives a browser through all four roles
 npm run verify:crm       # drags a lead, converts one, opens a ticket, checks the DB
+npm run verify:orders    # order, return and warranty claim, role by role, checks the DB
 npm run gen:permissions  # regenerate docs/permissions.md from the matrix
 ```
 
@@ -238,6 +239,27 @@ concurrency guarantees intact:
   Computing it during render hydrates with a different minute.
 - **dnd-kit needs a fixed `id` on `DndContext`**, or its generated aria ids
   differ between server and client.
+
+## Orders, returns and warranty
+
+- **Every order status change goes through the order service** (`placeOrder`,
+  `payOrder`, `advanceOrder`, `cancelOrder`, `recordRefund`), which locks the
+  order row and checks `ORDER_TRANSITIONS`. Returns and claims have their own
+  services and maps. Never write a status directly.
+- **Lock order is document, then promo, then variants.** A return locks the
+  return, then its order, then variants; a claim locks the claim first. A new
+  order takes the SO counter as its document lock.
+- **Price only with `priceOrder`** (`orders/services/pricing.ts`). The form
+  previews with it, the service re-prices from the database with it, and the
+  seed builds its history with it. Never trust a price from the browser.
+- **Pure rules are split from services** so client components can import them:
+  `pricing`, `order-rules`, `return-rules`, `warranty-rules`, `promo-rules`.
+  The `orders`, `returns` and `warranty` services import Prisma and are server only.
+- **Money is stripped in the query**, not hidden in the page, for anyone
+  without `orders.viewMoney` (`getOrder`, `listOrders`, `getReturn`). Printing
+  needs `canPrintDocuments`, which requires both print and money access.
+- **PDFs use the standard fonts**, which are WinAnsi only. Pass every string
+  through the document model and `pdfSafe`; never draw a peso sign.
 
 ## Known issues
 

@@ -998,6 +998,7 @@ model Order {
   tickets         Ticket[]
   activities      Activity[]
   promoRedemption PromoRedemption?
+  replacementFor  WarrantyClaim?     @relation("WarrantyReplacement")
 
   @@index([status, placedAt])
   @@index([channel, placedAt])
@@ -1143,13 +1144,15 @@ model WarrantyClaim {
   submittedAt       DateTime            @default(now())
   resolvedAt        DateTime?
   assigneeId        String?
+  replacementOrderId String?            @unique      // zero-value order that shipped the replacement, see D-20
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
-  orderItem OrderItem      @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
-  customer  Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
-  assignee  User?          @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  orderItem        OrderItem      @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+  customer         Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  variant          ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  assignee         User?          @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  replacementOrder Order?         @relation("WarrantyReplacement", fields: [replacementOrderId], references: [id], onDelete: SetNull)
 
   @@index([status, submittedAt])
   @@index([customerId])

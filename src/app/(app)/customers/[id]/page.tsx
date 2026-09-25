@@ -211,9 +211,12 @@ export default async function Customer360Page({ params }: { params: Params }) {
                     {orders.map((order) => (
                       <tr key={order.id} className="border-b border-hairline last:border-b-0">
                         <td className="px-3 py-2 whitespace-nowrap">
-                          <span className="block font-mono text-[12px] text-ink">
+                          <Link
+                            href={`/orders/${order.id}`}
+                            className="block font-mono text-[12px] text-ink hover:text-accent-strong"
+                          >
                             {order.orderNumber}
-                          </span>
+                          </Link>
                           <span className="block text-caption text-ink-subtle" data-numeric>
                             {formatDate(order.placedAt)}
                           </span>
@@ -425,9 +428,12 @@ export default async function Customer360Page({ params }: { params: Params }) {
                 {claims.map((claim) => (
                   <li key={claim.id} className="text-body-sm">
                     <span className="flex items-center justify-between gap-2">
-                      <span className="font-mono text-[11px] text-ink-subtle">
+                      <Link
+                        href={`/warranty/${claim.id}`}
+                        className="font-mono text-[11px] text-ink-subtle hover:text-accent-strong"
+                      >
                         {claim.claimNumber}
-                      </span>
+                      </Link>
                       <StatusBadge tone={CLAIM_TONE[claim.status]}>
                         {claim.status.toLowerCase().replace(/_/g, " ")}
                       </StatusBadge>

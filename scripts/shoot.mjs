@@ -71,6 +71,27 @@ const PAGES = {
   // tkt_000016 is urgent and in progress, with an order, replies and a note.
   "ticket-detail": { route: "/tickets/tkt_000016", auth: true },
   "ticket-new": { route: "/tickets/new?customerId=cus_000019", auth: true },
+  orders: { route: "/orders", auth: true },
+  "orders-to-fulfil": { route: "/orders?view=to-fulfil", auth: true },
+  // ord_000737 is a completed Shopee order with a promo; ord_000944 was partly
+  // refunded; ord_001040 is pending, holding stock; ord_000016 is a POS sale
+  // split between cash and another method.
+  "order-detail": { route: "/orders/ord_000737", auth: true },
+  "order-refunded": { route: "/orders/ord_000944", auth: true },
+  "order-pending": { route: "/orders/ord_001040", auth: true },
+  "order-new": { route: "/orders/new", auth: true },
+  returns: { route: "/returns", auth: true },
+  // ret_000072 restocked one line and wrote one off; ret_000083 waits on approval.
+  "return-detail": { route: "/returns/ret_000072", auth: true },
+  "return-requested": { route: "/returns/ret_000083", auth: true },
+  "return-new": { route: "/returns/new?orderId=ord_001020", auth: true },
+  warranty: { route: "/warranty?view=all", auth: true },
+  // wcl_000003 is approved, so the replace and refund actions show.
+  "claim-detail": { route: "/warranty/wcl_000003", auth: true },
+  "claim-new": { route: "/warranty/new?orderItemId=oit_ord_001033_0", auth: true },
+  promos: { route: "/promos", auth: true },
+  invoice: { route: "/print/invoice/ord_000737", auth: true },
+  receipt: { route: "/print/receipt/ord_000016", auth: true },
 };
 
 /** Admin sees the most, so it is the account used for authenticated captures. */

@@ -5,14 +5,16 @@ keyboards, keycaps, switches, mice, headsets and streaming gear. It covers
 inventory, sales and POS, purchasing, CRM and finance reporting across seven
 sales channels.
 
-> **Status: Phase 6 of 8.** Tooling, the design system, the app shell, the
+> **Status: Phase 7 of 8.** Tooling, the design system, the app shell, the
 > database schema, the seeded demo data, authentication with role-based access
 > control and the audit log, the catalogue, the stock ledger (levels,
-> movements, adjustments, transfers, alerts and reorder suggestions), and now
-> the CRM: customers with Philippine addresses, Customer 360, the lead pipeline
-> kanban with conversion to customer, activities and "My tasks", support
-> tickets with SLA targets, and automatic customer segments. Sales, POS,
-> purchasing and reporting land in later phases. See
+> movements, adjustments, transfers, alerts and reorder suggestions), the CRM
+> (customers, Customer 360, the lead kanban, activities, tickets, segments), and
+> now sales: orders across every channel with an enforced lifecycle, split
+> payments, promo codes and manual discounts, VAT and shipping, printable and
+> PDF invoices and receipts, returns (restock or write off, with the refund),
+> and warranty claims resolved by a no-charge replacement or a refund. The POS
+> register, purchasing and reporting land in later phases. See
 > [docs/PLAN.md](docs/PLAN.md) for the plan and phase order.
 
 ## Setup
@@ -68,12 +70,17 @@ Verify it at any time:
 npm run db:verify
 ```
 
-That runs 70 checks: SPEC section 7 targets, the stock ledger invariants from
+That runs 80 checks: SPEC section 7 targets, the stock ledger invariants from
 docs/PLAN.md section 6.5 (no negative stock at any point in the history, the
 running balance reconciles, moving-average cost matches the ledger), adjustment
 and transfer documents that match their movements exactly, order money
 integrity (totals equal line sums, VAT is exactly 12 percent of the VAT-inclusive
-total, payments reconcile), the CRM (every won lead has its customer, every
+total, payments reconcile, split payments follow the settlement rules, refunds
+never exceed what was paid, a cancelled order keeps no money, a refunded one
+gave back every centavo or every unit), promos (redeemed only inside their
+dates, uses given back on cancel), returns (open returns never hold more units
+than are still out, every completed line moved stock or booked a loss), sales
+document numbers carrying the year they were raised in, the CRM (every won lead has its customer, every
 ticket's SLA target is its priority's business hours from creation, first
 response is the first public reply, stored segments match the segment rules,
 nothing is dated in the future), and content quality.
@@ -96,6 +103,7 @@ refuses to start rather than failing later at the first query.
 | `npm run test:unit` / `test:db`         | Either half on its own                                    |
 | `npm run verify:rbac`                   | Drives a browser through all four roles                   |
 | `npm run verify:crm`                    | Drags a lead, converts one, opens a ticket, checks the DB |
+| `npm run verify:orders`                 | Order to return to warranty, role by role, checks the DB  |
 | `npm run db:segments`                   | Recomputes customer segments; run it nightly              |
 | `npm run db:up` / `db:down` / `db:logs` | Postgres via Docker Compose                               |
 
@@ -120,6 +128,22 @@ evenings and Sundays. The db side runs the lead and ticket services under their
 row locks: Sales refused on somebody else's lead, a column renumbered only when
 its gaps run out, two simultaneous conversions of one lead with exactly one
 winner, first response stamped by the first public reply and never by a note.
+
+Sales is tested the same way. The unit side covers order pricing (VAT extracted
+at 12/112, line VAT summing exactly to the goods VAT, the promo applied after
+line discounts and the manual discount after the promo, shipping never
+discounted, the Sales discount cap), promo eligibility, every status machine
+(orders, returns, warranty claims), split-payment settlement and cash change,
+refunds that return a line one unit at a time to exactly its total, and the
+invoice and receipt documents down to a rendered PDF. The db side places orders
+through real transactions: a short second line rolls back the whole order,
+eight buyers racing for five units sell four, five orders racing for a promo
+with two uses left get exactly two, a cancelled paid order restocks at the cost
+it left at, and a return restocks one line and writes another off with the
+ledger invariants re-checked after each.
+
+`npm run verify:orders` then drives the same lifecycle through a real browser,
+as the role that does each step, and reads the database after every click.
 
 ## Stack
 
@@ -227,6 +251,32 @@ everything else:
 - **SLA targets are business hours.** Urgent 4, High 8, Medium 24, Low 72,
   counted Monday to Saturday, 9 to 6, Manila time, so an urgent ticket raised
   on a Saturday evening is due Monday morning rather than overnight.
+- **Placing an order is one transaction.** Order, lines, promo use, stock
+  reservations, payments, SALE movements, status events and the audit entry
+  commit together or not at all. Locks are always taken in the same order,
+  document then promo then variants, so no two flows can deadlock.
+- **Reserve at pending, deduct at paid.** A placed order holds its stock in
+  `reserved`; payment turns the reservation into SALE movements and stamps each
+  line with the moving-average cost at that instant. Cancelling a paid order
+  puts the goods back at exactly the cost they left at.
+- **Prices come from the catalogue, never the browser.** The form prices the
+  order live with the same pure function the server uses, and the server
+  prices it again from the database. Promo first, then the manual discount on
+  what is left, so a discount never discounts a promo; Sales is capped at 10
+  percent of manual discount, enforced in the service.
+- **A split payment adds up to exactly what is due.** Never short, since an
+  order is paid in full or not at all, and never over, since the only
+  overpayment is cash handed over, which is recorded with its change.
+- **Refunds are shares, not estimates.** Returning part of a line refunds the
+  difference of two cumulative shares of its discounted total, so returning it
+  one unit at a time refunds exactly what was paid for it. An order reads as
+  refunded only when all the money or every unit has gone back.
+- **A warranty replacement is a real order.** It ships at no charge but leaves
+  stock through a SALE movement at average cost, so the cost of the warranty
+  lands in the books instead of vanishing.
+- **Invoices are one model, rendered twice.** The printable page and the PDF
+  (drawn with pdf-lib's standard fonts, so nothing is embedded) read the same
+  document, so the paper copy and the download cannot disagree.
 - **CSV import is a two-step diff.** The file is planned into per-row create,
   update, unchanged and error outcomes and shown before anything is written,
   and the plan is recomputed on the server at commit time so a stale preview

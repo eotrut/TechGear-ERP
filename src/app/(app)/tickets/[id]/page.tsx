@@ -289,9 +289,12 @@ export default async function TicketPage({ params }: { params: Params }) {
                 <ShoppingBag className="mt-0.5 size-3.5 shrink-0 text-ink-subtle" aria-hidden />
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-[12px] text-ink">
+                    <Link
+                      href={`/orders/${ticket.order.id}`}
+                      className="font-mono text-[12px] text-ink hover:text-accent-strong"
+                    >
                       {ticket.order.orderNumber}
-                    </span>
+                    </Link>
                     <OrderStatusBadge status={ticket.order.status} />
                   </p>
                   <p data-numeric className="text-caption text-ink-subtle">

@@ -1,6 +1,9 @@
 import { faker } from "@faker-js/faker";
 import type { Prisma, WarrantyClaimStatus } from "@prisma/client";
 
+import { refundForUnits } from "../../src/features/orders/services/order-rules";
+import { manilaYear } from "../../src/lib/format";
+import { formatReference } from "../../src/lib/numbering";
 import type { SeedContext } from "./lib/context";
 import { addDays, chance, clampToNow, intBetween, pick } from "./lib/helpers";
 
@@ -36,7 +39,15 @@ const WARRANTY_ISSUES = [
 
 export function buildAftersales(ctx: SeedContext): void {
   const { tables, ledger } = ctx;
-  const year = ctx.now.getUTCFullYear();
+  // Document numbers run per Manila calendar year, as the live numbering does.
+  const rmaByYear = new Map<number, number>();
+  const claimByYear = new Map<number, number>();
+  const nextNumber = (counters: Map<number, number>, at: Date) => {
+    const year = manilaYear(at);
+    const next = (counters.get(year) ?? 0) + 1;
+    counters.set(year, next);
+    return { year, next };
+  };
 
   const itemsByOrder = new Map<string, Prisma.OrderItemCreateManyInput[]>();
   for (const item of tables.orderItems) {
@@ -63,8 +74,10 @@ export function buildAftersales(ctx: SeedContext): void {
     if (items.length === 0) continue;
 
     const deliveredAt = (order.deliveredAt as Date | null) ?? (order.placedAt as Date);
-    const requestedAt = addDays(deliveredAt, intBetween(2, 21));
-    if (requestedAt > ctx.now) continue;
+    const proposed = addDays(deliveredAt, intBetween(2, 21));
+    // A refunded order needs the return that refunded it, even a recent one.
+    if (proposed > ctx.now && !mustRefund) continue;
+    const requestedAt = clampToNow(proposed, ctx.now);
 
     returnCounter += 1;
     const returnId = `ret_${String(returnCounter).padStart(6, "0")}`;
@@ -76,13 +89,17 @@ export function buildAftersales(ctx: SeedContext): void {
 
     // Recent returns are still in flight; older ones have been settled.
     const ageDays = Math.round((ctx.now.getTime() - requestedAt.getTime()) / 86_400_000);
+    // A return moves one step every few days, so the recent ones sit at each
+    // step of the queue: waiting on approval, on the goods, on the refund.
     const status = mustRefund
       ? "COMPLETED"
       : ageDays < 3
-        ? pick(["REQUESTED", "REQUESTED", "APPROVED"] as const)
-        : ageDays < 8
-          ? pick(["APPROVED", "RECEIVED", "COMPLETED"] as const)
-          : pick(["COMPLETED", "COMPLETED", "COMPLETED", "REJECTED"] as const);
+        ? "REQUESTED"
+        : ageDays < 6
+          ? "APPROVED"
+          : ageDays < 9
+            ? "RECEIVED"
+            : pick(["COMPLETED", "COMPLETED", "COMPLETED", "REJECTED"] as const);
 
     const approvedAt =
       status === "REQUESTED" ? null : clampToNow(addDays(requestedAt, intBetween(1, 3)), ctx.now);
@@ -95,7 +112,10 @@ export function buildAftersales(ctx: SeedContext): void {
 
     tables.returns.push({
       id: returnId,
-      rmaNumber: `RMA-${year}-${String(returnCounter).padStart(4, "0")}`,
+      rmaNumber: (() => {
+        const { year, next } = nextNumber(rmaByYear, requestedAt);
+        return formatReference("RMA", year, next);
+      })(),
       orderId: String(order.id),
       customerId: String(order.customerId ?? ctx.customers[0]?.id),
       warehouseId: String(order.warehouseId),
@@ -119,8 +139,12 @@ export function buildAftersales(ctx: SeedContext): void {
 
       // Most returns are resaleable; the rest are written off to loss.
       const disposition = chance(0.72) ? "RESTOCK" : "WRITE_OFF";
-      const refundAmount = Math.round(
-        ((item.lineTotalCentavos ?? 0) / Math.max(1, item.qty)) * qty,
+      // The same share the live return service refunds: exact to the centavo
+      // however the line's discount divided.
+      const refundAmount = refundForUnits(
+        { qty: item.qty, lineTotalCentavos: item.lineTotalCentavos ?? 0 },
+        item.qtyReturned ?? 0,
+        qty,
       );
 
       tables.returnItems.push({
@@ -136,10 +160,10 @@ export function buildAftersales(ctx: SeedContext): void {
             : "Inspected, resaleable.",
       });
 
-      // Mark the original line so it cannot be returned twice.
-      item.qtyReturned = (item.qtyReturned ?? 0) + qty;
-
+      // Units come off the line only when the return completes; an open return
+      // holds them without counting them as back, as in the live service.
       if (status !== "COMPLETED") return;
+      item.qtyReturned = (item.qtyReturned ?? 0) + qty;
 
       refundTotal += refundAmount;
 
@@ -160,15 +184,18 @@ export function buildAftersales(ctx: SeedContext): void {
           refs: { returnItemId },
         });
       } else {
-        ledger.writeOff({
-          variantId: String(item.variantId),
-          warehouseId: String(order.warehouseId),
-          unitCostCentavos: item.unitCostCentavos ?? 0,
-          occurredAt: movedAt,
-          actorId: ctx.users.warehouse.id,
-          note: "Returned damaged, written off to loss.",
-          refs: { returnItemId },
-        });
+        // One zero-quantity row per unit, so each row's cost is one unit's loss.
+        for (let unit = 0; unit < qty; unit += 1) {
+          ledger.writeOff({
+            variantId: String(item.variantId),
+            warehouseId: String(order.warehouseId),
+            unitCostCentavos: item.unitCostCentavos ?? 0,
+            occurredAt: new Date(movedAt.getTime() + unit),
+            actorId: ctx.users.warehouse.id,
+            note: "Returned damaged, written off to loss.",
+            refs: { returnItemId },
+          });
+        }
       }
     });
 
@@ -216,6 +243,8 @@ export function buildAftersales(ctx: SeedContext): void {
     const items = itemsByOrder.get(String(order.id)) ?? [];
     const item = items[0];
     if (!item || !order.customerId) continue;
+    // A unit that already came back cannot also be under warranty.
+    if ((item.qtyReturned ?? 0) >= item.qty) continue;
 
     const variant = variantById.get(String(item.variantId));
     if (!variant) continue;
@@ -235,7 +264,10 @@ export function buildAftersales(ctx: SeedContext): void {
 
     tables.warrantyClaims.push({
       id: `wcl_${String(claimCounter).padStart(6, "0")}`,
-      claimNumber: `WC-${year}-${String(claimCounter).padStart(4, "0")}`,
+      claimNumber: (() => {
+        const { year, next } = nextNumber(claimByYear, submittedAt);
+        return formatReference("WC", year, next);
+      })(),
       orderItemId: String(item.id),
       customerId: String(order.customerId),
       variantId: variant.id,

@@ -227,8 +227,11 @@ Rules are evaluated most specific first.
 | `/orders/new`                  | `orders.create`         |   Y   |    Y    |   Y   |     -     |
 | `/orders`                      | `orders.view`           |   Y   |    Y    |   Y   |     Y     |
 | `/pos`                         | `pos.use`               |   Y   |    Y    |   Y   |     -     |
+| `/returns/new`                 | `returns.create`        |   Y   |    Y    |   Y   |     -     |
 | `/returns`                     | `returns.view`          |   Y   |    Y    |   Y   |     Y     |
+| `/warranty/new`                | `warranty.create`       |   Y   |    Y    |   Y   |     -     |
 | `/warranty`                    | `warranty.view`         |   Y   |    Y    |   Y   |     Y     |
+| `/print`                       | `orders.print`          |   Y   |    Y    |   Y   |     Y     |
 | `/promos`                      | `promos.view`           |   Y   |    Y    |   Y   |     -     |
 | `/customers/new`               | `customers.manage`      |   Y   |    Y    |   Y   |     -     |
 | `/customers`                   | `customers.view`        |   Y   |    Y    |   Y   |     Y     |

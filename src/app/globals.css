@@ -331,3 +331,33 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Printed documents are paper, whatever theme the app is in. The light ladder
+   is restated for this subtree so a dark-mode preview still shows the invoice
+   the printer will produce. Values match :root exactly. */
+.paper {
+  color-scheme: light;
+  --canvas: #fcfcfd;
+  --surface-1: #f6f7f9;
+  --surface-2: #f1f3f5;
+  --hairline: #e3e6ea;
+  --hairline-strong: #d3d8de;
+  --ink: #0d1114;
+  --ink-muted: #39424c;
+  --ink-subtle: #5c646e;
+  --accent-fill: #0b6e82;
+  --accent-on-fill: #ffffff;
+  --accent-strong: #075b6d;
+  --danger: #b3261e;
+  background-color: var(--canvas);
+  color: var(--ink);
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background-color: var(--canvas);
+  }
+}
