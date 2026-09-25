@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { FilePlus2 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { AlertsTable } from "@/features/inventory/components/alerts-table";
 import { ListFilters } from "@/components/data-table/list-filters";
 import { ReorderTable } from "@/features/inventory/components/reorder-table";
 import { ViewTabs } from "@/components/data-table/view-tabs";
+import { Button } from "@/components/ui/button";
 import {
   ALERT_PAGE_SIZE,
   alertCounts,
@@ -39,6 +42,7 @@ export default async function AlertsPage({ searchParams }: { searchParams: Searc
 
   const withCost = can(user.role, "products.viewCost");
   const canSetReorder = can(user.role, "inventory.setReorderLevels");
+  const canOrder = can(user.role, "purchasing.manage");
 
   const [counts, warehouses, reorderAll] = await Promise.all([
     alertCounts(filters.warehouseId),
@@ -99,6 +103,16 @@ export default async function AlertsPage({ searchParams }: { searchParams: Searc
         <PageHeader
           title="Stock alerts"
           description={`What to buy, company wide. A variant is suggested when available stock plus open purchase orders reaches its reorder point, and the quantity is enough whole batches to clear it. Sorted by days of cover at the last ${SALES_WINDOW_DAYS} days of sales.`}
+          actions={
+            canOrder && reorderAll.total > 0 ? (
+              <Button asChild variant="primary" size="sm">
+                <Link href="/purchasing/new">
+                  <FilePlus2 aria-hidden />
+                  New purchase order
+                </Link>
+              </Button>
+            ) : null
+          }
         />
 
         <ReorderTable
@@ -109,6 +123,7 @@ export default async function AlertsPage({ searchParams }: { searchParams: Searc
           pageSize={ALERT_PAGE_SIZE}
           withCost={withCost}
           canSetReorder={canSetReorder}
+          canOrder={canOrder}
           toolbar={
             <div key="reorder-toolbar" className="flex flex-col gap-3">
               {tabs}

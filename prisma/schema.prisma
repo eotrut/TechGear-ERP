@@ -728,7 +728,8 @@ model PurchaseReceiptItem {
 
 model SupplierBill {
   id                 String     @id @default(cuid())
-  billNumber         String     @unique
+  billNumber         String     @unique                // ours: "SB-2026-0012"
+  supplierReference  String?                           // the supplier's own invoice number
   supplierId         String
   purchaseOrderId    String?
   status             BillStatus @default(OPEN)

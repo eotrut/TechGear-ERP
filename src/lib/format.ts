@@ -132,3 +132,9 @@ const weekdayFormatter = new Intl.DateTimeFormat(LOCALE, {
 export function formatWeekday(value: Date | string): string {
   return weekdayFormatter.format(new Date(value));
 }
+
+/** "2026-09-25", a date input's value, to midnight Manila on that day. Null if malformed. */
+export function parseManilaDate(value: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) return null;
+  return parseManilaDateTime(`${value.trim()}T00:00`);
+}

@@ -19,22 +19,34 @@ import { MovementBadge, QtyDelta } from "./badges";
  * left behind. Reading down a filtered variant is reading its running balance
  * backwards, which is the whole point of storing `balanceAfter`.
  *
- * Source documents link where their page exists. Orders, receipts and returns
- * are shown by number until their modules land, rather than linking to a 404.
+ * Source documents link to their page. A goods received note links to its
+ * purchase order, but only for roles that can open purchasing; everyone else
+ * sees the number, rather than a link to a 403.
  */
 
-function sourceHref(source: LedgerSource): string | null {
-  if (source.kind === "adjustment") return `/inventory/adjustments/${source.id}`;
-  if (source.kind === "transfer") return `/inventory/transfers/${source.id}`;
-  return null;
+function sourceHref(source: LedgerSource, linkReceipts: boolean): string | null {
+  switch (source.kind) {
+    case "adjustment":
+      return `/inventory/adjustments/${source.id}`;
+    case "transfer":
+      return `/inventory/transfers/${source.id}`;
+    case "order":
+      return `/orders/${source.id}`;
+    case "return":
+      return `/returns/${source.id}`;
+    case "receipt":
+      return linkReceipts ? `/purchasing/${source.id}` : null;
+    default:
+      return null;
+  }
 }
 
-function Source({ row }: { row: LedgerRow }) {
+function Source({ row, linkReceipts }: { row: LedgerRow; linkReceipts: boolean }) {
   const reason = STOCK_REASON_LABEL[row.reason] ?? row.reason;
   if (!row.source) {
     return <span className="text-caption text-ink-subtle">{reason}</span>;
   }
-  const href = sourceHref(row.source);
+  const href = sourceHref(row.source, linkReceipts);
   return (
     <span className="block whitespace-nowrap">
       {href ? (
@@ -56,6 +68,7 @@ export function LedgerTable({
   pageCount,
   pageSize,
   withCost,
+  linkReceipts,
   toolbar,
   filtered,
 }: {
@@ -65,6 +78,7 @@ export function LedgerTable({
   pageCount: number;
   pageSize: number;
   withCost: boolean;
+  linkReceipts: boolean;
   toolbar: React.ReactNode;
   filtered: boolean;
 }) {
@@ -166,7 +180,7 @@ export function LedgerTable({
         id: "source",
         header: "Source",
         meta: { label: "Source", className: "hidden md:table-cell" } satisfies ColumnMeta,
-        cell: ({ row }) => <Source row={row.original} />,
+        cell: ({ row }) => <Source row={row.original} linkReceipts={linkReceipts} />,
       },
       {
         id: "actor",
@@ -181,7 +195,7 @@ export function LedgerTable({
     );
 
     return defs;
-  }, [withCost]);
+  }, [withCost, linkReceipts]);
 
   return (
     <DataTable

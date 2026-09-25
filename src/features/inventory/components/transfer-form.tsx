@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-import { createTransferAction, variantPositionsAction } from "../actions";
+import { createTransferAction, searchVariantsAction, variantPositionsAction } from "../actions";
 import type { VariantPick, WarehouseOption } from "../queries";
 import { transferSchema, type TransferInput } from "../schemas";
 import { VariantPicker } from "./variant-picker";
@@ -284,6 +284,7 @@ export function TransferForm({
         ) : null}
 
         <VariantPicker
+          search={searchVariantsAction}
           warehouseId={fromWarehouseId}
           excludeIds={(values ?? []).map((line) => line.variantId)}
           onPick={addLine}

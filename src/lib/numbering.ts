@@ -29,6 +29,10 @@ const SEQUENCES = {
   SO: { table: Prisma.raw(`"Order"`), column: Prisma.raw(`"orderNumber"`), width: 6 },
   RMA: { table: Prisma.raw(`"Return"`), column: Prisma.raw(`"rmaNumber"`), width: 4 },
   WC: { table: Prisma.raw(`"WarrantyClaim"`), column: Prisma.raw(`"claimNumber"`), width: 4 },
+  PO: { table: Prisma.raw(`"PurchaseOrder"`), column: Prisma.raw(`"poNumber"`), width: 4 },
+  // Goods received notes: one per delivery, so a PO can have several.
+  GRN: { table: Prisma.raw(`"PurchaseReceipt"`), column: Prisma.raw(`reference`), width: 4 },
+  SB: { table: Prisma.raw(`"SupplierBill"`), column: Prisma.raw(`"billNumber"`), width: 4 },
 } as const;
 
 export type ReferenceKind = keyof typeof SEQUENCES;

@@ -11,11 +11,9 @@ import { authorizeAction } from "@/lib/rbac/guard";
 import { deleteSupplierSchema, supplierSchema } from "../schemas";
 
 /**
- * Supplier directory mutations. Rates are entered as percentages and stored
- * as basis points, which is the same integer-only discipline money follows.
+ * Supplier directory mutations. Performance rates are never written here:
+ * they are measured from deliveries when stock is received.
  */
-
-const toBps = (percent: number) => Math.round(percent * 100);
 
 export async function saveSupplierAction(input: unknown): Promise<ActionResult> {
   const { user } = await authorizeAction("suppliers.manage");
@@ -25,7 +23,7 @@ export async function saveSupplierAction(input: unknown): Promise<ActionResult> 
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Check the form and try again." };
   }
 
-  const { id, onTimeRate, defectRate, ...values } = parsed.data;
+  const { id, ...values } = parsed.data;
 
   const clash = await db.supplier.findFirst({
     where: { code: values.code, ...(id ? { id: { not: id } } : {}) },
@@ -41,8 +39,6 @@ export async function saveSupplierAction(input: unknown): Promise<ActionResult> 
     phone: values.phone === "" ? null : values.phone,
     leadTimeDays: values.leadTimeDays,
     paymentTerms: values.paymentTerms,
-    onTimeRateBps: toBps(onTimeRate),
-    defectRateBps: toBps(defectRate),
     notes: values.notes === "" ? null : values.notes,
     isActive: values.isActive,
   };
@@ -59,8 +55,6 @@ export async function saveSupplierAction(input: unknown): Promise<ActionResult> 
           phone: true,
           leadTimeDays: true,
           paymentTerms: true,
-          onTimeRateBps: true,
-          defectRateBps: true,
           isActive: true,
         },
       });
@@ -76,8 +70,6 @@ export async function saveSupplierAction(input: unknown): Promise<ActionResult> 
           phone: true,
           leadTimeDays: true,
           paymentTerms: true,
-          onTimeRateBps: true,
-          defectRateBps: true,
           isActive: true,
         },
       });

@@ -34,6 +34,7 @@ export function ReorderTable({
   pageSize,
   withCost,
   canSetReorder,
+  canOrder,
   toolbar,
 }: {
   rows: ReorderRow[];
@@ -43,6 +44,8 @@ export function ReorderTable({
   pageSize: number;
   withCost: boolean;
   canSetReorder: boolean;
+  /** Links each supplier to a new PO prefilled with its suggestions. */
+  canOrder: boolean;
   toolbar: React.ReactNode;
 }) {
   const columns = useMemo<ColumnDef<ReorderRow, unknown>[]>(() => {
@@ -163,7 +166,17 @@ export function ReorderTable({
       cell: ({ row }) =>
         row.original.supplierName ? (
           <span className="block max-w-[14rem] truncate text-body-sm text-ink-muted">
-            {row.original.supplierName}
+            {canOrder && row.original.supplierId ? (
+              <Link
+                href={`/purchasing/new?supplierId=${row.original.supplierId}&reorder=1`}
+                className="hover:text-accent-strong hover:underline"
+                title={`Order this supplier's suggestions`}
+              >
+                {row.original.supplierName}
+              </Link>
+            ) : (
+              row.original.supplierName
+            )}
             {row.original.leadTimeDays !== null ? (
               <span className="text-caption text-ink-subtle">
                 , {row.original.leadTimeDays} day lead
@@ -192,7 +205,7 @@ export function ReorderTable({
     }
 
     return defs;
-  }, [withCost, canSetReorder]);
+  }, [withCost, canSetReorder, canOrder]);
 
   return (
     <DataTable

@@ -1,12 +1,10 @@
 import { z } from "zod";
 
 /**
- * Supplier directory. Purchase orders arrive in a later phase; what is
- * captured here is what receiving and payables will need from day one:
- * who they are, how long they take, and how they have performed.
- *
- * On-time and defect rates are basis points in the database, so the form
- * takes a percentage and the action converts it once.
+ * Supplier directory: who they are, how long they quote to deliver, and on
+ * what terms. On-time and defect rates are not on the form: they are measured
+ * from deliveries by the receiving service (suppliers/services/performance.ts),
+ * so nobody can type a supplier a better record than it earned.
  */
 
 export const PAYMENT_TERMS = ["COD", "NET_7", "NET_15", "NET_30", "NET_60"] as const;
@@ -18,12 +16,6 @@ export const PAYMENT_TERMS_LABELS: Record<(typeof PAYMENT_TERMS)[number], string
   NET_30: "Net 30 days",
   NET_60: "Net 60 days",
 };
-
-const percent = (label: string) =>
-  z.coerce
-    .number({ message: `${label} must be a percentage.` })
-    .min(0, `${label} cannot be negative.`)
-    .max(100, `${label} cannot exceed 100.`);
 
 export const supplierSchema = z.object({
   id: z.string().trim().optional(),
@@ -56,8 +48,6 @@ export const supplierSchema = z.object({
     .min(0)
     .max(365),
   paymentTerms: z.enum(PAYMENT_TERMS),
-  onTimeRate: percent("On-time rate"),
-  defectRate: percent("Defect rate"),
   notes: z.string().trim().max(500),
   isActive: z.boolean(),
 });

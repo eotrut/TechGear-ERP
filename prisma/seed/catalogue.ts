@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { pesosToCentavos } from "../../src/lib/money";
 import { netFromGross } from "../../src/lib/vat";
 import { BRANDS, CATEGORIES, PRODUCTS } from "./data/catalogue";
+import { PH_LOCATIONS } from "./data/philippines";
 import { phLandline, phLocation, phPerson, phStreet, pick, slugify } from "./lib/helpers";
 import type { SeedContext, UserRef, VariantRef, WarehouseRef } from "./lib/context";
 
@@ -275,7 +276,10 @@ export async function buildCatalogue(ctx: SeedContext): Promise<void> {
   SUPPLIERS.forEach((supplier, index) => {
     const id = `sup_${String(index + 1).padStart(6, "0")}`;
     const contact = phPerson();
-    const location = phLocation();
+    // Drawn anyway so the seeded sequence after this point stays the same;
+    // the address itself comes from the supplier's real city.
+    const drawn = phLocation();
+    const location = PH_LOCATIONS.find((candidate) => candidate.city === supplier.city) ?? drawn;
 
     tables.suppliers.push({
       id,

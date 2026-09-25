@@ -213,6 +213,7 @@ export const navigation: NavGroup[] = [
       {
         label: "Purchase orders",
         href: "/purchasing",
+        built: true,
         icon: FileText,
         permission: "purchasing.view",
       },
@@ -223,7 +224,13 @@ export const navigation: NavGroup[] = [
         icon: Truck,
         permission: "suppliers.view",
       },
-      { label: "Bills", href: "/purchasing/bills", icon: Wallet, permission: "bills.view" },
+      {
+        label: "Bills",
+        href: "/purchasing/bills",
+        built: true,
+        icon: Wallet,
+        permission: "bills.view",
+      },
     ],
   },
   {

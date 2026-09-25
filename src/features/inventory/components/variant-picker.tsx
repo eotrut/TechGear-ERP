@@ -6,11 +6,10 @@ import { ScanBarcode } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-import { searchVariantsAction } from "../actions";
 import type { VariantPick } from "../queries";
 
 /**
- * Add-a-line combobox for the adjustment and transfer forms.
+ * Add-a-line combobox for the adjustment, transfer and purchase order forms.
  *
  * Built for a barcode scanner as much as a keyboard: a scanner types the code
  * and presses Enter, so Enter takes the first match, and an exact SKU or
@@ -18,23 +17,28 @@ import type { VariantPick } from "../queries";
  * closes the list. Each match shows what is available in the chosen
  * warehouse, because that is the number the line is about to change.
  */
-export function VariantPicker({
+type SearchResult<T> = { ok: true; results: T[] } | { ok: false; error: string };
+
+export function VariantPicker<T extends VariantPick>({
   warehouseId,
   excludeIds,
   onPick,
+  search,
   disabled = false,
   placeholder = "Scan a barcode or search by SKU or name",
 }: {
   warehouseId: string;
   excludeIds: string[];
-  onPick: (pick: VariantPick) => void;
+  onPick: (pick: T) => void;
+  /** The server action that finds matches. Purchasing passes one that also returns cost. */
+  search: (input: { query: string; warehouseId: string }) => Promise<SearchResult<T>>;
   disabled?: boolean;
   placeholder?: string;
 }) {
   const listId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<VariantPick[]>([]);
+  const [results, setResults] = useState<T[]>([]);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -47,7 +51,7 @@ export function VariantPicker({
     const request = ++requestRef.current;
     const timer = window.setTimeout(async () => {
       setLoading(true);
-      const response = await searchVariantsAction({ query, warehouseId });
+      const response = await search({ query, warehouseId });
       // Only the latest request may update the list, however they resolve.
       if (request !== requestRef.current) return;
       setLoading(false);
@@ -55,9 +59,9 @@ export function VariantPicker({
       setActive(0);
     }, 180);
     return () => window.clearTimeout(timer);
-  }, [query, warehouseId, open]);
+  }, [query, warehouseId, open, search]);
 
-  function pick(result: VariantPick | undefined) {
+  function pick(result: T | undefined) {
     if (!result) return;
     onPick(result);
     setQuery("");

@@ -16,7 +16,7 @@ export default async function SuppliersPage() {
     <div className="mx-auto w-full max-w-[1440px]">
       <PageHeader
         title="Suppliers"
-        description="Who TechGear PH buys from, how long they take and how they have performed. Purchase orders draw their lead time and terms from here."
+        description="Who TechGear PH buys from, on what terms and how long they quote. On-time and defect rates are measured from every delivery received, not typed in."
       />
 
       <SupplierManager

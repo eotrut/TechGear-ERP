@@ -314,10 +314,12 @@ export function buildSales(ctx: SeedContext): void {
   for (let dayIndex = 0; dayIndex <= totalDays; dayIndex += 1) {
     const day = startOfDay(addDays(ctx.windowStart, dayIndex));
 
-    const endOfDay = addDays(day, 1);
+    // Only deliveries from before today count: today's orders are stamped at
+    // random business hours, and a truck that lands at three cannot supply a
+    // sale rung up at ten. It stocks tomorrow's orders instead.
     while (receiptCursor < receipts.length) {
       const receipt = receipts[receiptCursor];
-      if (!receipt || receipt.occurredAt >= endOfDay) break;
+      if (!receipt || receipt.occurredAt >= day) break;
       ledger.receive({
         variantId: receipt.variantId,
         warehouseId: receipt.warehouseId,

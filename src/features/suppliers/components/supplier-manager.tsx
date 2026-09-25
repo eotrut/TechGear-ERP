@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -17,9 +18,10 @@ import type { SupplierRow } from "../queries";
 /**
  * Supplier directory.
  *
- * On-time and defect rates are shown as percentages with one decimal, which
- * is what the basis points in the database mean. A supplier with purchase
- * history can be deactivated but never deleted.
+ * On-time and defect rates are measured from deliveries, not typed in, and
+ * show as percentages with one decimal. A supplier nothing has arrived from
+ * yet has no rate, which reads differently from a rate of zero. A supplier
+ * with purchase history can be deactivated but never deleted.
  */
 
 const selectClass =
@@ -34,8 +36,6 @@ type Draft = {
   phone: string;
   leadTimeDays: number;
   paymentTerms: (typeof PAYMENT_TERMS)[number];
-  onTimeRate: number;
-  defectRate: number;
   notes: string;
   isActive: boolean;
 };
@@ -48,8 +48,6 @@ const blank: Draft = {
   phone: "",
   leadTimeDays: 7,
   paymentTerms: "NET_30",
-  onTimeRate: 95,
-  defectRate: 1,
   notes: "",
   isActive: true,
 };
@@ -144,34 +142,6 @@ function SupplierFields({ draft, onChange }: { draft: Draft; onChange: (next: Dr
             </option>
           ))}
         </select>
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor={`sup-ontime-${id}`}>On-time, percent</Label>
-        <Input
-          id={`sup-ontime-${id}`}
-          type="number"
-          min={0}
-          max={100}
-          step="0.1"
-          className="h-8 text-right font-mono text-body-sm"
-          value={draft.onTimeRate}
-          onChange={(event) => onChange({ ...draft, onTimeRate: Number(event.target.value) })}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor={`sup-defect-${id}`}>Defects, percent</Label>
-        <Input
-          id={`sup-defect-${id}`}
-          type="number"
-          min={0}
-          max={100}
-          step="0.1"
-          className="h-8 text-right font-mono text-body-sm"
-          value={draft.defectRate}
-          onChange={(event) => onChange({ ...draft, defectRate: Number(event.target.value) })}
-        />
       </div>
 
       <div className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-3">
@@ -340,7 +310,12 @@ export function SupplierManager({
                 <tr key={supplier.id} className="border-b border-hairline last:border-b-0">
                   <td className="px-3 py-2">
                     <span className="flex items-center gap-2">
-                      <span className="text-ink">{supplier.name}</span>
+                      <Link
+                        href={`/suppliers/${supplier.id}`}
+                        className="text-ink hover:text-accent-strong"
+                      >
+                        {supplier.name}
+                      </Link>
                       {supplier.isActive ? null : (
                         <StatusBadge tone="neutral">inactive</StatusBadge>
                       )}
@@ -363,20 +338,28 @@ export function SupplierManager({
                     {PAYMENT_TERMS_LABELS[supplier.paymentTerms]}
                   </td>
                   <td className="px-3 py-2 text-right">
-                    <StatusBadge
-                      tone={
-                        supplier.onTimeRateBps >= 9500
-                          ? "success"
-                          : supplier.onTimeRateBps >= 9000
-                            ? "warning"
-                            : "critical"
-                      }
-                    >
-                      {percent(supplier.onTimeRateBps)}
-                    </StatusBadge>
+                    {supplier.deliveries === 0 ? (
+                      <span className="text-caption text-ink-subtle">no deliveries</span>
+                    ) : (
+                      <StatusBadge
+                        tone={
+                          supplier.onTimeRateBps >= 9000
+                            ? "success"
+                            : supplier.onTimeRateBps >= 7500
+                              ? "warning"
+                              : "critical"
+                        }
+                      >
+                        {percent(supplier.onTimeRateBps)}
+                      </StatusBadge>
+                    )}
                   </td>
                   <td className="hidden px-3 py-2 text-right font-mono text-ink-muted sm:table-cell">
-                    {percent(supplier.defectRateBps)}
+                    {supplier.deliveries === 0 ? (
+                      <span className="font-sans text-caption text-ink-subtle">none yet</span>
+                    ) : (
+                      percent(supplier.defectRateBps)
+                    )}
                   </td>
                   <td className="hidden px-3 py-2 text-right font-mono text-ink-subtle xl:table-cell">
                     {supplier._count.purchaseOrders}
@@ -397,8 +380,6 @@ export function SupplierManager({
                             phone: supplier.phone ?? "",
                             leadTimeDays: supplier.leadTimeDays,
                             paymentTerms: supplier.paymentTerms,
-                            onTimeRate: supplier.onTimeRateBps / 100,
-                            defectRate: supplier.defectRateBps / 100,
                             notes: supplier.notes ?? "",
                             isActive: supplier.isActive,
                           });

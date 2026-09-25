@@ -75,6 +75,7 @@ npm run verify:rbac      # drives a browser through all four roles
 npm run verify:crm       # drags a lead, converts one, opens a ticket, checks the DB
 npm run verify:orders    # order, return and warranty claim, role by role, checks the DB
 npm run verify:pos       # rings up a register sale at tablet size, checks stock and the DB
+npm run verify:purchasing # raises, receives (twice), bills and pays a PO, checks stock and cost
 npm run gen:permissions  # regenerate docs/permissions.md from the matrix
 ```
 
@@ -278,6 +279,28 @@ concurrency guarantees intact:
   to it instead (D-39); focusing it raises the tablet keyboard after every tap.
 - `npm run verify:pos` rings up a sale as Sales at 1024x768 and checks stock,
   payments, movements and the orders list. It changes demo data; reseed after.
+
+## Purchasing
+
+- **Receiving is the only purchasing code that moves stock or cost.**
+  `receivePurchaseOrder` (`purchasing/services/receiving.ts`) locks the PO row,
+  then allocates the GRN number, then locks every variant, then writes one
+  `RECEIPT` per accepted line through `applyMovement`. Never write a receipt
+  movement or `avgCostCentavos` anywhere else.
+- **PO status after a receipt is computed** by `statusAfterReceipt`, then
+  checked against `PO_TRANSITIONS`. Cancel is refused once any receipt exists;
+  closing a partly received PO needs a reason.
+- **Rejected units stay outstanding** (D-41) and never touch stock. A delivery
+  may not exceed what is outstanding, counting accepted and rejected together.
+- **Supplier prices are VAT-exclusive** (D-40): `pricePurchaseOrder` and
+  `priceBill` add VAT on top. Sales prices stay VAT-inclusive.
+- **Supplier on-time and defect rates are measured** (D-42) by
+  `refreshSupplierPerformance`, called inside every receipt transaction. Do not
+  put them back on the supplier form.
+- **Bill payments lock the bill** and go through `planSupplierPayment`, which
+  refuses anything over the balance.
+- Pure rules (`purchase-rules`, `bill-rules`, `performance-rules`) are what the
+  forms preview with and the seed builds history with.
 
 ## Known issues
 

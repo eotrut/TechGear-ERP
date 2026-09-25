@@ -16,7 +16,11 @@ sales channels.
 > warranty claims resolved by a no-charge replacement or a refund, and the POS
 > register: barcode and SKU scanning, a touch-sized cart, discounts and promos,
 > an optional customer, split payment with cash change, and a printable
-> receipt. Purchasing and reporting land in later phases. See
+> receipt. Purchasing is in too: purchase orders through their whole status
+> flow, partial and full receiving that writes stock movements and moves the
+> moving-average cost, dock rejects, supplier bills and payments, payables
+> aging, and supplier on-time and defect rates measured from every delivery.
+> Reporting lands in a later phase. See
 > [docs/PLAN.md](docs/PLAN.md) for the plan and phase order.
 
 ## Setup
@@ -107,6 +111,7 @@ refuses to start rather than failing later at the first query.
 | `npm run verify:crm`                    | Drags a lead, converts one, opens a ticket, checks the DB |
 | `npm run verify:orders`                 | Order to return to warranty, role by role, checks the DB  |
 | `npm run verify:pos`                    | Rings up a register sale at tablet size, checks the DB    |
+| `npm run verify:purchasing`             | Raises, receives, bills and pays a PO; checks stock, cost |
 | `npm run db:segments`                   | Recomputes customer segments; run it nightly              |
 | `npm run db:up` / `db:down` / `db:logs` | Postgres via Docker Compose                               |
 
@@ -156,6 +161,20 @@ on its timeline, while a short shelf, a discount over the Sales cap or cash on
 delivery at the counter writes nothing. `npm run verify:pos` rings up a sale as
 Sales at tablet size (a barcode, a SKU, a customer, a capped discount, cash
 plus GCash) and checks stock, payments, movements and the orders list.
+
+Purchasing is tested the same two ways. The unit side covers the PO status map,
+pricing with VAT on goods and freight, receipt planning (over-receipt, rejects
+that stay owed, a delivery refused in full), the moving average across
+successive deliveries down to the rounding and the 32-bit boundary, bill
+settlement, aging buckets on Manila calendar days, and supplier performance.
+The db side receives a PO in two deliveries at different costs and checks stock,
+the average (global across warehouses), the ledger row and the status after
+each; four people receiving the same balance at once add it once; five clerks
+paying the same bill can never overpay it. `npm run verify:purchasing` drives it
+in a browser: Manager raises and sends a PO, Warehouse receives it in two
+deliveries at different costs, and the script checks on-hand, the ledger and
+the average against the formula to the centavo before Manager bills and pays
+it.
 
 ## Stack
 

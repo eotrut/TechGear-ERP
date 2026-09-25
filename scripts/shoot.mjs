@@ -92,6 +92,20 @@ const PAGES = {
   promos: { route: "/promos", auth: true },
   invoice: { route: "/print/invoice/ord_000737", auth: true },
   receipt: { route: "/print/receipt/ord_000016", auth: true },
+  purchasing: { route: "/purchasing", auth: true },
+  "purchasing-open": { route: "/purchasing?view=open", auth: true },
+  // po_000009 arrived in two deliveries with dock rejects; po_000010 is partly
+  // received with a part-paid bill; po_000004 was closed short.
+  "po-detail": { route: "/purchasing/po_000009", auth: true },
+  "po-partial": { route: "/purchasing/po_000010", auth: true },
+  "po-closed-short": { route: "/purchasing/po_000004", auth: true },
+  "po-receive": { route: "/purchasing/po_000012/receive", auth: true },
+  "po-new": { route: "/purchasing/new?supplierId=sup_000001&reorder=1", auth: true },
+  "po-edit": { route: "/purchasing/po_000015/edit", auth: true },
+  bills: { route: "/purchasing/bills", auth: true },
+  "bill-detail": { route: "/purchasing/bills/bil_000009", auth: true },
+  "bill-new": { route: "/purchasing/bills/new", auth: true },
+  "supplier-detail": { route: "/suppliers/sup_000001", auth: true },
   // The register, and the post-sale screen for the seeded split POS sale.
   pos: { route: "/pos", auth: true },
   "pos-receipt": { route: "/pos/receipt/ord_000016", auth: true },

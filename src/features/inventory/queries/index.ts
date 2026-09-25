@@ -359,6 +359,7 @@ const LEDGER_FROM = Prisma.sql`
   LEFT JOIN "Order" o ON o.id = oi."orderId"
   LEFT JOIN "PurchaseReceiptItem" pri ON pri.id = m."purchaseReceiptItemId"
   LEFT JOIN "PurchaseReceipt" pr ON pr.id = pri."receiptId"
+  LEFT JOIN "PurchaseOrder" po ON po.id = pr."purchaseOrderId"
   LEFT JOIN "ReturnItem" ri ON ri.id = m."returnItemId"
   LEFT JOIN "Return" r ON r.id = ri."returnId"
 `;
@@ -378,7 +379,7 @@ function ledgerConditions(filters: LedgerFilters): Prisma.Sql {
     conditions.push(Prisma.sql`(
       v.sku ILIKE ${like} OR p.name ILIKE ${like}
       OR adj.reference ILIKE ${exact} OR trf.reference ILIKE ${exact}
-      OR o."orderNumber" ILIKE ${exact} OR pr.reference ILIKE ${exact}
+      OR o."orderNumber" ILIKE ${exact} OR pr.reference ILIKE ${exact} OR po."poNumber" ILIKE ${exact}
       OR r."rmaNumber" ILIKE ${exact}
     )`);
   }
@@ -698,6 +699,7 @@ export type ReorderRow = {
   suggestedQty: number;
   unitCostCentavos: number;
   estimatedCostCentavos: number;
+  supplierId: string | null;
   supplierName: string | null;
   leadTimeDays: number | null;
 };
@@ -714,6 +716,7 @@ type RawReorderRow = {
   reorder_qty: number;
   sold: number;
   unit_cost: number;
+  supplier_id: string | null;
   supplier_name: string | null;
   lead_time_days: number | null;
 };
@@ -748,7 +751,7 @@ const REORDER_BASE = Prisma.sql`
   ),
   last_supplier AS (
     SELECT DISTINCT ON (poi."variantId")
-      poi."variantId", s.name AS supplier_name, s."leadTimeDays" AS lead_time_days
+      poi."variantId", s.id AS supplier_id, s.name AS supplier_name, s."leadTimeDays" AS lead_time_days
     FROM "PurchaseOrderItem" poi
     JOIN "PurchaseOrder" po ON po.id = poi."purchaseOrderId"
     JOIN "Supplier" s ON s.id = po."supplierId"
@@ -764,7 +767,7 @@ const REORDER_BASE = Prisma.sql`
       v."reorderLevel" AS reorder_level, v."reorderQty" AS reorder_qty,
       COALESCE(sd.qty, 0) AS sold,
       CASE WHEN v."lastCostCentavos" > 0 THEN v."lastCostCentavos" ELSE v."avgCostCentavos" END AS unit_cost,
-      ls.supplier_name, ls.lead_time_days
+      ls.supplier_id, ls.supplier_name, ls.lead_time_days
     FROM "ProductVariant" v
     JOIN "Product" p ON p.id = v."productId"
     LEFT JOIN stock st ON st."variantId" = v.id
@@ -836,6 +839,7 @@ export async function listReorderSuggestions(
         // Stripped here rather than hidden in the table, like every cost read.
         unitCostCentavos: withCost ? row.unit_cost : 0,
         estimatedCostCentavos: withCost ? suggestedQty * row.unit_cost : 0,
+        supplierId: row.supplier_id,
         supplierName: row.supplier_name,
         leadTimeDays: row.lead_time_days,
       };
@@ -847,6 +851,39 @@ export async function listReorderSuggestions(
       ? counted.reduce((sum, row) => sum + suggest(row) * row.unit_cost, 0)
       : 0,
   };
+}
+
+/**
+ * Reorder suggestions as purchase order lines. With a supplier, only the
+ * variants that supplier last delivered; without one, every suggestion. Most
+ * urgent first, capped at what one PO can hold.
+ */
+export async function reorderLinesFor(
+  supplierId: string | null,
+  limit = 50,
+): Promise<{ variantId: string; suggestedQty: number; supplierId: string | null }[]> {
+  const rows = await db.$queryRaw<RawReorderRow[]>`
+    ${REORDER_BASE}
+    SELECT * FROM candidates
+    WHERE ${NEEDS_REORDER}
+      AND (${supplierId ?? ""} = '' OR supplier_id = ${supplierId ?? ""})
+    ORDER BY
+      CASE WHEN sold > 0 THEN GREATEST(available, 0)::float / (sold::float / ${SALES_WINDOW_DAYS}::float) END ASC NULLS LAST,
+      available ASC, sku ASC
+    LIMIT ${limit}::int
+  `;
+  return rows
+    .map((row) => ({
+      variantId: row.variant_id,
+      supplierId: row.supplier_id,
+      suggestedQty: suggestedReorderQty({
+        available: row.available,
+        onOrder: row.on_order,
+        reorderLevel: row.reorder_level,
+        reorderQty: row.reorder_qty,
+      }),
+    }))
+    .filter((row) => row.suggestedQty > 0);
 }
 
 // --------------------------------------------------------------- adjustments

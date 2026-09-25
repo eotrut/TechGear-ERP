@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-import { createAdjustmentAction, variantPositionsAction } from "../actions";
+import { createAdjustmentAction, searchVariantsAction, variantPositionsAction } from "../actions";
 import type { VariantPick, WarehouseOption } from "../queries";
 import {
   ADJUSTMENT_REASON_META,
@@ -345,6 +345,7 @@ export function AdjustmentForm({
         ) : null}
 
         <VariantPicker
+          search={searchVariantsAction}
           warehouseId={warehouseId}
           excludeIds={(values ?? []).map((line) => line.variantId)}
           onPick={addLine}

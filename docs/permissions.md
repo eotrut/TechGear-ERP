@@ -240,7 +240,9 @@ Rules are evaluated most specific first.
 | `/activities`                  | `activities.viewAll`    |   Y   |    Y    |   -   |     -     |
 | `/tickets/new`                 | `tickets.comment`       |   Y   |    Y    |   Y   |     -     |
 | `/tickets`                     | `tickets.view`          |   Y   |    Y    |   Y   |     -     |
+| `/purchasing/bills/new`        | `bills.manage`          |   Y   |    Y    |   -   |     -     |
 | `/purchasing/bills`            | `bills.view`            |   Y   |    Y    |   -   |     -     |
+| `/purchasing/new`              | `purchasing.manage`     |   Y   |    Y    |   -   |     -     |
 | `/purchasing`                  | `purchasing.view`       |   Y   |    Y    |   -   |     Y     |
 | `/suppliers`                   | `suppliers.view`        |   Y   |    Y    |   -   |     Y     |
 | `/warehouses`                  | `warehouses.view`       |   Y   |    Y    |   Y   |     Y     |

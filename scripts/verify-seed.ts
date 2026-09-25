@@ -7,6 +7,9 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
 import { recomputeSegments } from "../src/features/customers/services/segments";
+import { summariseAging } from "../src/features/purchasing/services/bill-rules";
+import { supplierDeliveries } from "../src/features/suppliers/services/performance";
+import { supplierPerformance } from "../src/features/suppliers/services/performance-rules";
 import { addBusinessHours, SLA_HOURS } from "../src/features/tickets/services/sla";
 
 /**
@@ -644,6 +647,179 @@ async function main(): Promise<void> {
     `  Inventory at cost:             PHP ${(inventoryValue / 100).toLocaleString("en-PH", { maximumFractionDigits: 0 })}`,
   );
   check("Inventory has value", inventoryValue > 0);
+
+  // ============================================================== purchasing
+  heading("Purchasing and payables");
+
+  const receivedDrift = await scalar(`
+    SELECT COUNT(*)::int AS value FROM (
+      SELECT poi.id FROM "PurchaseOrderItem" poi
+      LEFT JOIN "PurchaseReceiptItem" pri ON pri."purchaseOrderItemId" = poi.id
+      GROUP BY poi.id, poi."qtyReceived"
+      HAVING poi."qtyReceived" <> COALESCE(SUM(pri."qtyReceived"), 0)
+    ) drift`);
+  check("Each PO line's received quantity equals the sum of its receipts", receivedDrift === 0);
+
+  const overReceived = await scalar(
+    `SELECT COUNT(*)::int AS value FROM "PurchaseOrderItem" WHERE "qtyReceived" > "qtyOrdered"`,
+  );
+  check("No PO line is received past what was ordered", overReceived === 0);
+
+  // Status is computed from the lines, never chosen (docs/PLAN.md 5.2).
+  const statusDrift = await sample(`
+    SELECT po."poNumber", po.status,
+           SUM(poi."qtyReceived")::int AS received, SUM(poi."qtyOrdered")::int AS ordered
+    FROM "PurchaseOrder" po JOIN "PurchaseOrderItem" poi ON poi."purchaseOrderId" = po.id
+    GROUP BY po.id
+    HAVING (po.status = 'RECEIVED' AND NOT BOOL_AND(poi."qtyReceived" >= poi."qtyOrdered"))
+        OR (po.status = 'PARTIALLY_RECEIVED'
+            AND (SUM(poi."qtyReceived") = 0 OR BOOL_AND(poi."qtyReceived" >= poi."qtyOrdered")))
+        OR (po.status IN ('DRAFT', 'SENT', 'CANCELLED') AND SUM(poi."qtyReceived") > 0)
+        OR (po.status = 'CLOSED' AND SUM(poi."qtyReceived") = 0)`);
+  check("PO statuses match what arrived", statusDrift === "", statusDrift);
+
+  const receiptsOnUnsent = await scalar(`
+    SELECT COUNT(*)::int AS value FROM "PurchaseReceipt" pr
+    JOIN "PurchaseOrder" po ON po.id = pr."purchaseOrderId"
+    WHERE po.status IN ('DRAFT', 'CANCELLED')`);
+  check("No delivery is booked against a draft or cancelled PO", receiptsOnUnsent === 0);
+
+  const poMath = await sample(`
+    SELECT po."poNumber" FROM "PurchaseOrder" po
+    JOIN "PurchaseOrderItem" poi ON poi."purchaseOrderId" = po.id
+    GROUP BY po.id
+    HAVING po."subtotalCentavos" <> SUM(poi."lineTotalCentavos")
+        OR BOOL_OR(poi."lineTotalCentavos" <> poi."qtyOrdered" * poi."unitCostCentavos")
+        OR po."vatCentavos" <> ROUND((po."subtotalCentavos" + po."shippingCentavos") * 12 / 100.0)
+        OR po."totalCentavos" <> po."subtotalCentavos" + po."shippingCentavos" + po."vatCentavos"`);
+  check(
+    "PO totals: lines, VAT on goods and freight, and total all reconcile",
+    poMath === "",
+    poMath,
+  );
+
+  const movementMismatch = await sample(`
+    SELECT pri.id, pri."qtyReceived", COUNT(sm.id)::int AS movements
+    FROM "PurchaseReceiptItem" pri
+    LEFT JOIN "StockMovement" sm ON sm."purchaseReceiptItemId" = pri.id
+    GROUP BY pri.id
+    HAVING (pri."qtyReceived" > 0 AND (COUNT(sm.id) <> 1 OR SUM(sm."qtyDelta") <> pri."qtyReceived"
+             OR BOOL_OR(sm.type <> 'RECEIPT')
+             OR BOOL_OR(sm."unitCostCentavos" <> pri."unitCostCentavos")))
+        OR (pri."qtyReceived" = 0 AND COUNT(sm.id) > 0)`);
+  check(
+    "Every accepted receipt line is one RECEIPT movement at its cost; rejects move nothing",
+    movementMismatch === "",
+    movementMismatch,
+  );
+
+  expectAtLeast(
+    "POs received in more than one delivery",
+    await scalar(`
+      SELECT COUNT(*)::int AS value FROM (
+        SELECT "purchaseOrderId" FROM "PurchaseReceipt" GROUP BY "purchaseOrderId" HAVING COUNT(*) > 1
+      ) t`),
+    1,
+  );
+  expectAtLeast(
+    "Receipt lines with units rejected at the dock",
+    await scalar(
+      `SELECT COUNT(*)::int AS value FROM "PurchaseReceiptItem" WHERE "qtyRejected" > 0`,
+    ),
+    1,
+  );
+
+  const billMath = await sample(`
+    SELECT b."billNumber", b.status, b."amountPaidCentavos",
+           COALESCE(SUM(p."amountCentavos"), 0)::int AS paid
+    FROM "SupplierBill" b LEFT JOIN "SupplierPayment" p ON p."billId" = b.id
+    GROUP BY b.id
+    HAVING b."amountPaidCentavos" <> COALESCE(SUM(p."amountCentavos"), 0)
+        OR b."totalCentavos" <> b."subtotalCentavos" + b."vatCentavos"
+        OR b."vatCentavos" <> ROUND(b."subtotalCentavos" * 12 / 100.0)
+        OR (b.status = 'PAID' AND b."amountPaidCentavos" <> b."totalCentavos")
+        OR (b.status = 'PARTIALLY_PAID'
+            AND NOT (b."amountPaidCentavos" > 0 AND b."amountPaidCentavos" < b."totalCentavos"))
+        OR (b.status = 'OPEN' AND b."amountPaidCentavos" <> 0)`);
+  check(
+    "Bills: payments sum to amount paid, VAT is 12% on top, status matches",
+    billMath === "",
+    billMath,
+  );
+
+  const overBilled = await sample(`
+    SELECT po."poNumber" FROM "PurchaseOrder" po
+    JOIN (SELECT "purchaseOrderId", SUM("subtotalCentavos")::bigint AS subtotal
+          FROM "SupplierBill" WHERE status <> 'VOID' AND "purchaseOrderId" IS NOT NULL
+          GROUP BY "purchaseOrderId") billed ON billed."purchaseOrderId" = po.id
+    JOIN (SELECT poi."purchaseOrderId", SUM(pri."qtyReceived"::bigint * pri."unitCostCentavos") AS value
+          FROM "PurchaseReceiptItem" pri
+          JOIN "PurchaseOrderItem" poi ON poi.id = pri."purchaseOrderItemId"
+          GROUP BY poi."purchaseOrderId") received ON received."purchaseOrderId" = po.id
+    WHERE billed.subtotal > received.value + po."shippingCentavos"`);
+  check("No PO is billed for more than arrived plus freight", overBilled === "", overBilled);
+
+  const earlyPayments = await scalar(`
+    SELECT COUNT(*)::int AS value FROM "SupplierPayment" p JOIN "SupplierBill" b ON b.id = p."billId"
+    WHERE p."paidAt" < b."issueDate"`);
+  check("No supplier payment predates its invoice", earlyPayments === 0);
+
+  const futurePurchasing = await scalar(`
+    SELECT (
+      (SELECT COUNT(*) FROM "PurchaseReceipt" WHERE "receivedAt" > (now() AT TIME ZONE 'UTC')) +
+      (SELECT COUNT(*) FROM "SupplierPayment" WHERE "paidAt" > (now() AT TIME ZONE 'UTC')) +
+      (SELECT COUNT(*) FROM "SupplierBill" WHERE "issueDate" > (now() AT TIME ZONE 'UTC'))
+    )::int AS value`);
+  check("No receipt, bill or supplier payment is dated in the future", futurePurchasing === 0);
+
+  // PO, GRN and SB numbers carry the Manila year of the date they were raised.
+  const wrongPurchasingYear = await sample(`
+    SELECT "poNumber" AS ref FROM "PurchaseOrder"
+      WHERE split_part("poNumber", '-', 2)::int <> EXTRACT(YEAR FROM "orderDate" + interval '8 hours')
+    UNION ALL SELECT reference FROM "PurchaseReceipt"
+      WHERE split_part(reference, '-', 2)::int <> EXTRACT(YEAR FROM "receivedAt" + interval '8 hours')
+    UNION ALL SELECT "billNumber" FROM "SupplierBill"
+      WHERE split_part("billNumber", '-', 2)::int <> EXTRACT(YEAR FROM "issueDate" + interval '8 hours')`);
+  check(
+    "PO, GRN and SB numbers carry the Manila year they were raised in",
+    wrongPurchasingYear === "",
+    wrongPurchasingYear,
+  );
+
+  // Rates are measured, so the stored ones must equal a fresh measurement.
+  const suppliers = await prisma.supplier.findMany({
+    select: { id: true, name: true, onTimeRateBps: true, defectRateBps: true },
+  });
+  const rateDrift: string[] = [];
+  for (const supplier of suppliers) {
+    const measured = supplierPerformance(await supplierDeliveries(prisma, supplier.id));
+    if (
+      (measured.onTimeRateBps ?? 0) !== supplier.onTimeRateBps ||
+      (measured.defectRateBps ?? 0) !== supplier.defectRateBps
+    ) {
+      rateDrift.push(supplier.name);
+    }
+  }
+  check(
+    "Supplier on-time and defect rates match their deliveries",
+    rateDrift.length === 0,
+    rateDrift.join(", "),
+  );
+
+  const aging = summariseAging(
+    await prisma.supplierBill.findMany({
+      where: { status: { in: ["OPEN", "PARTIALLY_PAID"] } },
+      select: { status: true, dueDate: true, totalCentavos: true, amountPaidCentavos: true },
+    }),
+    new Date(),
+  );
+  check(
+    `Payables aging has something to show: ${(aging.total / 100).toFixed(2)} owed, ${(
+      (aging.total - aging.current) /
+      100
+    ).toFixed(2)} of it past due`,
+    aging.total > 0 && aging.total > aging.current,
+  );
 
   // ======================================================================= CRM
   heading("CRM");

@@ -138,6 +138,7 @@ export default async function LedgerPage({ searchParams }: { searchParams: Searc
         pageCount={ledger.pageCount}
         pageSize={LEDGER_PAGE_SIZE}
         withCost={withCost}
+        linkReceipts={can(user.role, "purchasing.view")}
         filtered={filtered}
         toolbar={
           <ListFilters
