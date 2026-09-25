@@ -92,6 +92,9 @@ const PAGES = {
   promos: { route: "/promos", auth: true },
   invoice: { route: "/print/invoice/ord_000737", auth: true },
   receipt: { route: "/print/receipt/ord_000016", auth: true },
+  // The register, and the post-sale screen for the seeded split POS sale.
+  pos: { route: "/pos", auth: true },
+  "pos-receipt": { route: "/pos/receipt/ord_000016", auth: true },
 };
 
 /** Admin sees the most, so it is the account used for authenticated captures. */

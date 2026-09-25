@@ -108,6 +108,24 @@ export const orderLineSchema = z.object({
 
 export type OrderLineValues = z.infer<typeof orderLineSchema>;
 
+/**
+ * What is wrong with a manual order discount as typed, or null. Shared by the
+ * order form and the register, so both refuse the same input the same way.
+ */
+export function manualDiscountIssue(
+  type: (typeof MANUAL_DISCOUNT_TYPES)[number],
+  value: string,
+): string | null {
+  if (type === "PERCENT") {
+    const pct = Number(value);
+    if (!/^\d{1,2}(\.\d{1,2})?$|^100$/.test(value) || pct <= 0 || pct > 100) {
+      return "Enter a percentage between 0.01 and 100.";
+    }
+  }
+  if (type === "FIXED" && value === "") return "Enter the peso amount off.";
+  return null;
+}
+
 export const ORDER_INTENTS = ["draft", "place", "paid"] as const;
 export type OrderIntent = (typeof ORDER_INTENTS)[number];
 
@@ -140,22 +158,9 @@ export const orderFormSchema = z
         message: "Each item can appear on one line only. Raise the quantity instead.",
       });
     }
-    if (value.manualDiscountType === "PERCENT") {
-      const pct = Number(value.manualDiscountValue);
-      if (!/^\d{1,2}(\.\d{1,2})?$|^100$/.test(value.manualDiscountValue) || pct <= 0 || pct > 100) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["manualDiscountValue"],
-          message: "Enter a percentage between 0.01 and 100.",
-        });
-      }
-    }
-    if (value.manualDiscountType === "FIXED" && value.manualDiscountValue === "") {
-      ctx.addIssue({
-        code: "custom",
-        path: ["manualDiscountValue"],
-        message: "Enter the peso amount off.",
-      });
+    const discountIssue = manualDiscountIssue(value.manualDiscountType, value.manualDiscountValue);
+    if (discountIssue) {
+      ctx.addIssue({ code: "custom", path: ["manualDiscountValue"], message: discountIssue });
     }
     if (value.intent === "draft" && MARKETPLACE_CHANNELS.includes(value.channel)) {
       ctx.addIssue({

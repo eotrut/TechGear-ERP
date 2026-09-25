@@ -34,6 +34,8 @@ export function SearchCombobox({
   invalid = false,
   disabled = false,
   emptyText = "No matches",
+  touch = false,
+  autoFocus = false,
 }: {
   id: string;
   value: ComboOption | null;
@@ -43,6 +45,9 @@ export function SearchCombobox({
   invalid?: boolean;
   disabled?: boolean;
   emptyText?: string;
+  /** 44px targets, for the register. */
+  touch?: boolean;
+  autoFocus?: boolean;
 }) {
   const listId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -79,6 +84,7 @@ export function SearchCombobox({
       <div
         className={cn(
           "flex h-8 items-center justify-between gap-2 rounded-md border border-input bg-surface-1 pr-1 pl-2.5",
+          touch && "h-11",
           disabled && "opacity-50",
         )}
       >
@@ -149,7 +155,8 @@ export function SearchCombobox({
             setOpen(false);
           }
         }}
-        className="h-8 bg-canvas pl-8 text-body-sm"
+        autoFocus={autoFocus}
+        className={cn("h-8 bg-canvas pl-8 text-body-sm", touch && "h-11 text-body")}
       />
 
       {open ? (
@@ -176,6 +183,7 @@ export function SearchCombobox({
                 onMouseEnter={() => setActive(index)}
                 className={cn(
                   "flex cursor-pointer items-center justify-between gap-3 px-3 py-1.5",
+                  touch && "py-2.5",
                   index === active && "bg-surface-3",
                 )}
               >

@@ -74,6 +74,7 @@ npm run test:db          # stock ledger and concurrency tests only
 npm run verify:rbac      # drives a browser through all four roles
 npm run verify:crm       # drags a lead, converts one, opens a ticket, checks the DB
 npm run verify:orders    # order, return and warranty claim, role by role, checks the DB
+npm run verify:pos       # rings up a register sale at tablet size, checks stock and the DB
 npm run gen:permissions  # regenerate docs/permissions.md from the matrix
 ```
 
@@ -260,6 +261,23 @@ concurrency guarantees intact:
   needs `canPrintDocuments`, which requires both print and money access.
 - **PDFs use the standard fonts**, which are WinAnsi only. Pass every string
   through the document model and `pdfSafe`; never draw a peso sign.
+
+## Point of sale
+
+- **The register owns no order logic.** `ringUpSale` (`pos/services/register.ts`)
+  is `createOrder` with the paid intent, then `advanceOrder` to Completed, in
+  one `runStockTransaction`. Pricing, promo checks, the discount cap, tender
+  settlement and stock all stay in the order service. Add POS behaviour there
+  or in the pure rules, never in the register.
+- **The cart previews with the order service's pure functions** (`previewSale`
+  wraps `priceOrder`; the payment dialog runs `settleTenders`), so Charge and
+  Complete are enabled exactly when the server would accept the sale.
+- **Discount and promo each need their own grant** on top of `pos.use`:
+  `ringUpSaleAction` checks `pos.discount` and `orders.applyPromo`.
+- **Never move focus into the scan field on a tap.** Keystrokes are routed back
+  to it instead (D-39); focusing it raises the tablet keyboard after every tap.
+- `npm run verify:pos` rings up a sale as Sales at 1024x768 and checks stock,
+  payments, movements and the orders list. It changes demo data; reseed after.
 
 ## Known issues
 

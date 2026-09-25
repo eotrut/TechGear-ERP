@@ -29,7 +29,8 @@
     "gen:permissions": "tsx scripts/gen-permissions-doc.ts",
     "verify:rbac": "node scripts/verify-rbac-browser.mjs",
     "verify:crm": "node scripts/verify-crm-browser.mjs",
-    "verify:orders": "node scripts/verify-orders-browser.mjs"
+    "verify:orders": "node scripts/verify-orders-browser.mjs",
+    "verify:pos": "node scripts/verify-pos-browser.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

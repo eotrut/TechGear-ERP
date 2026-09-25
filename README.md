@@ -5,7 +5,7 @@ keyboards, keycaps, switches, mice, headsets and streaming gear. It covers
 inventory, sales and POS, purchasing, CRM and finance reporting across seven
 sales channels.
 
-> **Status: Phase 7 of 8.** Tooling, the design system, the app shell, the
+> **Status: Phase 8.** Tooling, the design system, the app shell, the
 > database schema, the seeded demo data, authentication with role-based access
 > control and the audit log, the catalogue, the stock ledger (levels,
 > movements, adjustments, transfers, alerts and reorder suggestions), the CRM
@@ -13,8 +13,10 @@ sales channels.
 > now sales: orders across every channel with an enforced lifecycle, split
 > payments, promo codes and manual discounts, VAT and shipping, printable and
 > PDF invoices and receipts, returns (restock or write off, with the refund),
-> and warranty claims resolved by a no-charge replacement or a refund. The POS
-> register, purchasing and reporting land in later phases. See
+> warranty claims resolved by a no-charge replacement or a refund, and the POS
+> register: barcode and SKU scanning, a touch-sized cart, discounts and promos,
+> an optional customer, split payment with cash change, and a printable
+> receipt. Purchasing and reporting land in later phases. See
 > [docs/PLAN.md](docs/PLAN.md) for the plan and phase order.
 
 ## Setup
@@ -104,6 +106,7 @@ refuses to start rather than failing later at the first query.
 | `npm run verify:rbac`                   | Drives a browser through all four roles                   |
 | `npm run verify:crm`                    | Drags a lead, converts one, opens a ticket, checks the DB |
 | `npm run verify:orders`                 | Order to return to warranty, role by role, checks the DB  |
+| `npm run verify:pos`                    | Rings up a register sale at tablet size, checks the DB    |
 | `npm run db:segments`                   | Recomputes customer segments; run it nightly              |
 | `npm run db:up` / `db:down` / `db:logs` | Postgres via Docker Compose                               |
 
@@ -144,6 +147,15 @@ ledger invariants re-checked after each.
 
 `npm run verify:orders` then drives the same lifecycle through a real browser,
 as the role that does each step, and reads the database after every click.
+
+The register reuses the order service, so its tests check the seams: the cart
+preview against the pricing rules, the quick-cash amounts, the draft the
+register sends, and, against real Postgres, a sale that leaves stock through
+SALE movements, records cash with its change and ends completed with every step
+on its timeline, while a short shelf, a discount over the Sales cap or cash on
+delivery at the counter writes nothing. `npm run verify:pos` rings up a sale as
+Sales at tablet size (a barcode, a SKU, a customer, a capped discount, cash
+plus GCash) and checks stock, payments, movements and the orders list.
 
 ## Stack
 
@@ -264,6 +276,11 @@ everything else:
   prices it again from the database. Promo first, then the manual discount on
   what is left, so a discount never discounts a promo; Sales is capped at 10
   percent of manual discount, enforced in the service.
+- **The register is an order, not a second order system.** A POS sale is
+  `createOrder` on the POS channel, paid on the spot, then walked through the
+  fulfilment steps to completed in the same transaction. The cart previews
+  with the same pricing and settlement functions the server runs, so the total
+  on the screen is the total charged.
 - **A split payment adds up to exactly what is due.** Never short, since an
   order is paid in full or not at all, and never over, since the only
   overpayment is cash handed over, which is recorded with its change.
