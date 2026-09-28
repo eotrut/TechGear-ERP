@@ -70,8 +70,9 @@ export const ROUTE_RULES: RouteRule[] = [
   { prefix: "/reports/purchases", permission: "reports.finance" },
   { prefix: "/reports/customer-ltv", permission: "reports.customerLtv" },
   { prefix: "/reports/sales", permission: "reports.sales" },
-  { prefix: "/reports", permission: "reports.sales" },
+  { prefix: "/reports", permission: "reports.view" },
 
+  { prefix: "/expenses/new", permission: "expenses.manage" },
   { prefix: "/expenses", permission: "expenses.view" },
   { prefix: "/dashboard", permission: "dashboard.view" },
   { prefix: "/design", permission: "dashboard.view" },

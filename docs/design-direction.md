@@ -222,8 +222,15 @@ Applied sparingly. Three things, and only these:
   sequential data; a small categorical set only where categories genuinely
   differ, such as channel mix. **Load the `dataviz` skill before writing the
   first line of chart code** and adapt its palette to Aqua rather than inventing
-  one. The `--chart-1` through `--chart-5` tokens currently in `globals.css` are
-  provisional placeholders pending that pass.
+  one. Done in Phase 10, with the skill's validator run against our own
+  canvas in both modes: `--chart-1` is Aqua stepped up in chroma (#00859C
+  light, #1AA2B8 dark; the accent fill reads grey at mark size in light and
+  sits outside the lightness band in dark), `--chart-2` is its warm opposite
+  (#E0622E / #D95926) for a second measure, and `--chart-compare` is a neutral
+  ghost (#9AA1AA / #5A616B) for the prior period. Every check passes:
+  lightness band, chroma floor, CVD separation (15.0 light, 20.4 dark) and 3:1
+  contrast for marks. Nominal breakdowns (channel, category) are one colour as
+  bar lists, since colouring categories would only re-encode length.
 - **Money and time detail pages** structured as summary header, then timeline,
   then line items. Order and PO detail pages follow that shape.
 - **No gradient mesh.** It is the thing Stripe is most known for visually and it

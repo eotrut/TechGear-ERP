@@ -66,9 +66,38 @@ export function formatPeso(centavos: number): string {
   return pesoFormatter.format(centavosToPesos(centavos));
 }
 
+const compactPesoFormatter = new Intl.NumberFormat("en-PH", {
+  style: "currency",
+  currency: "PHP",
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+/** "₱1.2M", "₱86.4K", for axis ticks and headline tiles where precision is noise. */
+export function formatPesoCompact(centavos: number): string {
+  return compactPesoFormatter.format(centavosToPesos(centavos));
+}
+
 /** "4,190.00", for table columns that carry the currency in the header. */
 export function formatAmount(centavos: number): string {
   return plainFormatter.format(centavosToPesos(centavos));
+}
+
+/**
+ * A SQL aggregate (summed as `bigint`, decision D-18) to a JS number.
+ *
+ * A year of revenue passes the 32-bit `Int` ceiling, so report totals are not
+ * held to `assertCentavos`. They are still integers, and a JS number is exact
+ * up to 2^53 centavos (about PHP 90 trillion). Past that this throws rather
+ * than rounding a total silently.
+ */
+export function aggregateCentavos(value: bigint | number | null | undefined): number {
+  if (value === null || value === undefined) return 0;
+  const number = Number(value);
+  if (!Number.isSafeInteger(number)) {
+    throw new MoneyOverflowError(number);
+  }
+  return number;
 }
 
 /** Sum centavos with an overflow guard at the end. */

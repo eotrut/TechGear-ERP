@@ -31,7 +31,8 @@
     "verify:crm": "node scripts/verify-crm-browser.mjs",
     "verify:orders": "node scripts/verify-orders-browser.mjs",
     "verify:pos": "node scripts/verify-pos-browser.mjs",
-    "verify:purchasing": "node scripts/verify-purchasing-browser.mjs"
+    "verify:purchasing": "node scripts/verify-purchasing-browser.mjs",
+    "verify:finance": "node scripts/verify-finance-browser.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -54,6 +55,7 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-hook-form": "^7.88.0",
+    "recharts": "^3.10.1",
     "sonner": "^2.0.8",
     "tailwind-merge": "3.7.0",
     "zod": "4.6.5"

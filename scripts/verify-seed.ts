@@ -8,6 +8,19 @@ import { PrismaClient } from "@prisma/client";
 
 import { recomputeSegments } from "../src/features/customers/services/segments";
 import { summariseAging } from "../src/features/purchasing/services/bill-rules";
+import { resolveRange, type DateRange } from "../src/features/reports/services/date-range";
+import { profitAndLoss, vatSummary } from "../src/features/reports/services/finance";
+import { inventoryValueNow, valuationAsOf } from "../src/features/reports/services/inventory";
+import { utc } from "../src/features/reports/services/measures";
+import { assembleStatement } from "../src/features/reports/services/pl-rules";
+import {
+  salesByCategory,
+  salesByChannel,
+  salesByCustomer,
+  salesByProduct,
+  salesBySalesperson,
+  salesPeriod,
+} from "../src/features/reports/services/sales";
 import { supplierDeliveries } from "../src/features/suppliers/services/performance";
 import { supplierPerformance } from "../src/features/suppliers/services/performance-rules";
 import { addBusinessHours, SLA_HOURS } from "../src/features/tickets/services/sla";
@@ -933,6 +946,102 @@ async function main(): Promise<void> {
     "Stored segments match the segment rules",
     segmentDrift === 0,
     `${segmentDrift} would move`,
+  );
+
+  // ================================================================= reports
+  heading("Reports reconcile (decision D-44)");
+
+  // Independent arithmetic, deliberately not the report service's SQL: if the
+  // shared sales base ever drifts from the definition, these disagree.
+  const independentRevenue = async (range: DateRange) =>
+    scalar(`
+      SELECT COALESCE(SUM(o."totalCentavos" - o."amountRefundedCentavos"), 0)::bigint AS value
+      FROM "Order" o
+      WHERE o.status IN ('PAID','PACKED','SHIPPED','DELIVERED','COMPLETED')
+        AND o."placedAt" >= '${utc(range.from)}'::timestamp
+        AND o."placedAt" <  '${utc(range.to)}'::timestamp
+        AND NOT EXISTS (SELECT 1 FROM "WarrantyClaim" w WHERE w."replacementOrderId" = o.id)`);
+
+  for (const preset of ["today", "mtd", "30d", "12m"] as const) {
+    const range = resolveRange({ range: preset }, now);
+    const [period, channels, people, products, categories, pl, vat] = await Promise.all([
+      salesPeriod(prisma, range),
+      salesByChannel(prisma, range),
+      salesBySalesperson(prisma, range),
+      salesByProduct(prisma, range),
+      salesByCategory(prisma, range),
+      profitAndLoss(prisma, range),
+      vatSummary(prisma, range),
+    ]);
+    const t = period.totals;
+    const sum = <T>(rows: readonly T[], pick: (row: T) => number) =>
+      rows.reduce((total, row) => total + pick(row), 0);
+    const statement = assembleStatement(pl.total);
+    const label = `${range.label}, PHP ${(t.revenue / 100).toLocaleString("en-PH")}`;
+
+    check(
+      `${label}: revenue matches independent SQL`,
+      t.revenue === (await independentRevenue(range)),
+    );
+    check(
+      `${range.label}: channel, salesperson and chart buckets each sum to revenue`,
+      sum(channels, (r) => r.revenue) === t.revenue &&
+        sum(people, (r) => r.revenue) === t.revenue &&
+        sum(period.series, (r) => r.revenue) === t.revenue &&
+        sum(channels, (r) => r.orders) === t.orders,
+    );
+    check(
+      `${range.label}: merchandise plus shipping less refunds equals revenue`,
+      t.merchandise + t.shipping - t.refunds === t.revenue,
+    );
+    check(
+      `${range.label}: product and category merchandise sum to the bridge's merchandise`,
+      sum(products, (r) => r.merchandise) === t.merchandise &&
+        sum(categories, (r) => r.merchandise) === t.merchandise,
+    );
+    check(
+      `${range.label}: P&L gross profit equals the gross profit report, and its months sum to it`,
+      statement.grossProfit === t.grossProfit &&
+        statement.netSales === t.netSales &&
+        sum(pl.buckets, (b) => assembleStatement(b.components).operatingProfit) ===
+          statement.operatingProfit,
+    );
+    check(
+      `${range.label}: VAT summary output VAT and vatable sales equal the sales base`,
+      vat.total.outputVat === t.vat && vat.total.vatableSales === t.netSales,
+    );
+    if (preset === "12m") {
+      const operatingPct = (statement.operatingProfit / statement.netSales) * 100;
+      check(
+        `A year of trading makes a thin, believable operating profit: ${operatingPct.toFixed(1)} percent of net sales`,
+        operatingPct > 1 && operatingPct < 15,
+      );
+    }
+  }
+
+  const valuation = await valuationAsOf(prisma, new Date(now.getTime() + 60_000));
+  const cache = await inventoryValueNow(prisma);
+  const ledgerValue = valuation.reduce((total, row) => total + row.valueCentavos, 0);
+  const ledgerUnits = valuation.reduce((total, row) => total + row.qty, 0);
+  check(
+    `Inventory valuation replayed from the ledger equals the StockLevel cache: PHP ${(ledgerValue / 100).toLocaleString("en-PH")}`,
+    ledgerValue === cache.value && ledgerUnits === cache.units,
+    `ledger ${ledgerValue} / ${ledgerUnits} units, cache ${cache.value} / ${cache.units} units`,
+  );
+
+  const allTime = resolveRange({ range: "custom", from: "2000-01-01", to: "2001-01-01" }, now);
+  const everything = { ...allTime, from: new Date(0), to: new Date(now.getTime() + 60_000) };
+  const customerRevenue = (await salesByCustomer(prisma, everything)).reduce(
+    (total, row) => total + row.revenue,
+    0,
+  );
+  const lifetime = await scalar(
+    `SELECT COALESCE(SUM("lifetimeValueCentavos"), 0)::bigint AS value FROM "Customer"`,
+  );
+  check(
+    "Customer lifetime values sum to all-time revenue from known customers",
+    customerRevenue === lifetime,
+    `rollup ${lifetime}, sales base ${customerRevenue}`,
   );
 
   // ==================================================================== summary

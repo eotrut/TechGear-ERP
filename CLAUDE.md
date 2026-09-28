@@ -65,7 +65,7 @@ npm run shoot            # Playwright CLI screenshot sweep, fails on console err
 npm run db:up            # start Postgres via Docker Compose
 npm run db:down          # stop it
 npm run db:seed          # deterministic 12 months of demo data
-npm run db:verify        # 70 integrity checks against the seeded data
+npm run db:verify        # 122 integrity checks, report reconciliation included
 npm run db:segments      # recompute customer segments (the nightly job)
 npm run db:reset         # drop, re-migrate, re-seed
 npm run db:images        # fetch placeholder product images
@@ -302,6 +302,32 @@ concurrency guarantees intact:
 - Pure rules (`purchase-rules`, `bill-rules`, `performance-rules`) are what the
   forms preview with and the seed builds history with.
 
+## Finance and reports
+
+- **Revenue has one definition (D-44): `salesBase` in
+  `reports/services/measures.ts`.** Every sales figure on the dashboard and in
+  the reports selects from it. Never write another `SUM("totalCentavos")` for
+  a revenue figure; add a column to the base or a query over it.
+- **Report services take a client and a window, never `db` or the user**, so
+  `db:verify` calls exactly what the pages call. Role scoping (Sales sees its
+  own salesperson row) happens in `reports/queries`, not in the page.
+- **Every range resolves through `resolveRange`** (`date-range.ts`), from the
+  page, the dashboard and the CSV export alike. Totals are the sum of the same
+  daily rows the chart draws, so a chart and its headline cannot disagree.
+- **Compare only inside recorded history** (`hasComparison`, D-46). Pass
+  `compare` to `KpiGrid` and drop the ghost series when it is false.
+- **A new report** goes in `REPORTS` (`reports/services/catalog.ts`), in
+  `ROUTE_RULES` with the same permission (a unit test checks they match), in
+  `buildReportExport`, and in the `scripts/shoot.mjs` manifest.
+- **Charts use `--chart-1`, `--chart-2` and `--chart-compare` only**, chosen
+  with the dataviz validator against our surfaces. A nominal breakdown is one
+  colour (`BarList`); a second hue is for a second measure, never a category.
+- **`cn()` knows the named type scale.** `tailwind-merge` reads an unknown
+  `text-*` as a colour, so `src/lib/utils.ts` registers `text-caption` through
+  `text-display` as font sizes. Add any new size token there too.
+- **`npm run shoot` takes `as` per page** to capture a role other than Admin;
+  the dashboard is captured for all four.
+
 ## Known issues
 
 - `npm audit` reports a postcss advisory reachable only through Next 15's own
@@ -319,6 +345,12 @@ concurrency guarantees intact:
   (`next.config.ts`). Without that, the screenshot sweep writes into the project
   while the server is serving and the watcher recompiles mid-request, which
   surfaces as `SyntaxError: Unexpected end of JSON input` and an intermittent 500. Do not remove those ignores.
+- **A full `npm run shoot` outgrows the dev server's heap.** Compiling all ~90
+  routes and serving ~500 captures takes `next dev` past 6 GB, and it restarts
+  or dies mid-sweep (a production server holds under 400 MB for the same
+  traffic, so this is the dev compiler, not a leak). For a full sweep, run
+  against `npm run build && npm start`, or start dev with
+  `NODE_OPTIONS=--max-old-space-size=8192` and sweep in parts.
 - `AUTH_URL` must match the origin the dev server is on. Auth.js rebuilds the
   request URL from it, so running on :3100 with `AUTH_URL` still at :3000
   sends the middleware's 403 rewrite to whatever else is on :3000.

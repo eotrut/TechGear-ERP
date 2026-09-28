@@ -136,6 +136,7 @@ export const PERMISSIONS = [
   "expenses.delete",
 
   // Reports
+  "reports.view",
   "reports.sales",
   "reports.salesBySalesperson",
   "reports.inventory",
@@ -295,6 +296,9 @@ export const MATRIX: Record<Permission, Partial<Record<Role, Access>>> = {
   "expenses.delete": ADMIN_ONLY,
 
   // --------------------------------------------------------------- reports
+  // The report index. Every role may run at least one report, so every role
+  // can open the list; each report is then gated on its own permission.
+  "reports.view": ALL_ROLES,
   "reports.sales": { ADMIN: "all", MANAGER: "all", SALES: "all" },
   "reports.salesBySalesperson": { ADMIN: "all", MANAGER: "all", SALES: "own" },
   "reports.inventory": { ADMIN: "all", MANAGER: "all", WAREHOUSE: "all" },
@@ -435,6 +439,7 @@ export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] =
   {
     label: "Reports",
     permissions: [
+      "reports.view",
       "reports.sales",
       "reports.salesBySalesperson",
       "reports.inventory",

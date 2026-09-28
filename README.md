@@ -5,7 +5,7 @@ keyboards, keycaps, switches, mice, headsets and streaming gear. It covers
 inventory, sales and POS, purchasing, CRM and finance reporting across seven
 sales channels.
 
-> **Status: Phase 8.** Tooling, the design system, the app shell, the
+> **Status: Phase 10.** Tooling, the design system, the app shell, the
 > database schema, the seeded demo data, authentication with role-based access
 > control and the audit log, the catalogue, the stock ledger (levels,
 > movements, adjustments, transfers, alerts and reorder suggestions), the CRM
@@ -20,8 +20,12 @@ sales channels.
 > flow, partial and full receiving that writes stock movements and moves the
 > moving-average cost, dock rejects, supplier bills and payments, payables
 > aging, and supplier on-time and defect rates measured from every delivery.
-> Reporting lands in a later phase. See
-> [docs/PLAN.md](docs/PLAN.md) for the plan and phase order.
+> Finance is in as well: a role-aware dashboard, ten reports (sales, gross
+> profit, profit and loss, VAT, aging, purchases, inventory valuation, stock
+> movement, slow-moving stock, customer lifetime value), each with a date range,
+> a comparison period and CSV export, and an expense register that feeds the
+> P&L and the VAT summary. Notifications and the final polish pass are next.
+> See [docs/PLAN.md](docs/PLAN.md) for the plan and phase order.
 
 ## Setup
 
@@ -313,6 +317,25 @@ everything else:
 - **Invoices are one model, rendered twice.** The printable page and the PDF
   (drawn with pdf-lib's standard fonts, so nothing is embedded) read the same
   document, so the paper copy and the download cannot disagree.
+- **Revenue is defined once.** Every sales figure on the dashboard and in the
+  reports comes from one SQL base (realised orders, dated by the Manila day
+  they were placed, net of refunds, warranty replacements excluded), so the
+  dashboard's revenue is the sales report's revenue, the P&L's gross profit is
+  the gross profit report's, and the VAT summary's output VAT agrees with both.
+  `npm run db:verify` checks all of it against independent SQL.
+- **Comparisons only where history exists.** Every range has a prior period,
+  clipped to the same elapsed time (the first nine hours of today against the
+  first nine of yesterday). When the prior period starts before the first
+  recorded sale, the delta is dropped and the page says why, instead of
+  printing a five-figure percentage.
+- **Inventory is valued from the ledger.** Valuation replays movements to any
+  month-end, so it can be taken as of a date the StockLevel cache never knew;
+  as of now the two must agree to the centavo.
+- **The P&L is VAT exclusive.** VAT collected and paid is owed to and claimed
+  from the BIR, so it sits in the VAT summary, not in income or cost. Warranty
+  replacements, stock lost on fully refunded orders and inventory adjustments
+  are operating lines, below gross profit, so gross profit still equals the
+  gross profit report.
 - **CSV import is a two-step diff.** The file is planned into per-row create,
   update, unchanged and error outcomes and shown before anything is written,
   and the plan is recomputed on the server at commit time so a stale preview

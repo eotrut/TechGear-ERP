@@ -184,6 +184,7 @@ The UI hides what a role cannot do, but hiding is never the control.
 
 | Permission                   | ADMIN | MANAGER | SALES | WAREHOUSE |
 | ---------------------------- | :---: | :-----: | :---: | :-------: |
+| `reports.view`               |   Y   |    Y    |   Y   |     Y     |
 | `reports.sales`              |   Y   |    Y    |   Y   |     -     |
 | `reports.salesBySalesperson` |   Y   |    Y    |  own  |     -     |
 | `reports.inventory`          |   Y   |    Y    |   -   |     Y     |
@@ -256,7 +257,8 @@ Rules are evaluated most specific first.
 | `/reports/purchases`           | `reports.finance`       |   Y   |    Y    |   -   |     -     |
 | `/reports/customer-ltv`        | `reports.customerLtv`   |   Y   |    Y    |   Y   |     -     |
 | `/reports/sales`               | `reports.sales`         |   Y   |    Y    |   Y   |     -     |
-| `/reports`                     | `reports.sales`         |   Y   |    Y    |   Y   |     -     |
+| `/reports`                     | `reports.view`          |   Y   |    Y    |   Y   |     Y     |
+| `/expenses/new`                | `expenses.manage`       |   Y   |    Y    |   -   |     -     |
 | `/expenses`                    | `expenses.view`         |   Y   |    Y    |   -   |     -     |
 | `/dashboard`                   | `dashboard.view`        |   Y   |    Y    |   Y   |     Y     |
 | `/design`                      | `dashboard.view`        |   Y   |    Y    |   Y   |     Y     |
@@ -265,9 +267,9 @@ Rules are evaluated most specific first.
 
 ## Totals
 
-| Role      | Permissions held | of 95 |
+| Role      | Permissions held | of 96 |
 | --------- | ---------------: | ----: |
-| ADMIN     |               95 |  100% |
-| MANAGER   |               85 |   89% |
-| SALES     |               42 |   44% |
-| WAREHOUSE |               31 |   33% |
+| ADMIN     |               96 |  100% |
+| MANAGER   |               86 |   90% |
+| SALES     |               43 |   45% |
+| WAREHOUSE |               32 |   33% |

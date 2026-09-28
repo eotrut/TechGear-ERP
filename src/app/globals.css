@@ -81,12 +81,16 @@
   --sidebar-border: var(--hairline);
   --sidebar-ring: var(--accent-fill);
 
-  /* --- Charts. Provisional: revisited under the dataviz skill in Phase 7. -- */
-  --chart-1: #0b6e82;
-  --chart-2: #3f9fb0;
-  --chart-3: #74c6d3;
-  --chart-4: #1d4e5c;
-  --chart-5: #a8dde5;
+  /* --- Charts. Chosen with the dataviz validator against this canvas, not
+         eyeballed: series-1 is Aqua stepped up in chroma so it does not read
+         gray at mark size, series-2 is its warm opposite for the rare chart
+         that genuinely compares two measures. Comparison periods are a
+         neutral ghost, never a third hue. See docs/design-direction.md. -- */
+  --chart-1: #00859c;
+  --chart-2: #e0622e;
+  --chart-compare: #9aa1aa;
+  --chart-grid: var(--hairline);
+  --chart-axis: var(--hairline-strong);
 
   /* --- Radii. DESIGN.md scale, used verbatim. ----------------------------- */
   --radius-xs: 4px; /* chips, status badges */
@@ -164,11 +168,13 @@
   --sidebar-border: var(--hairline);
   --sidebar-ring: var(--accent-fill);
 
-  --chart-1: #2bb8ce;
-  --chart-2: #1d8fa3;
-  --chart-3: #7fdcea;
-  --chart-4: #14646f;
-  --chart-5: #b3ecf4;
+  /* Stepped for the dark band: the accent fill itself is too light to hold
+     up as a mark beside the warm series. */
+  --chart-1: #1aa2b8;
+  --chart-2: #d95926;
+  --chart-compare: #5a616b;
+  --chart-grid: var(--hairline);
+  --chart-axis: var(--hairline-strong);
 
   --shadow-overlay:
     0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -4px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.06);
@@ -233,9 +239,9 @@
 
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
+  --color-chart-compare: var(--chart-compare);
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-axis: var(--chart-axis);
 
   /* Type scale. DESIGN.md's ratios and negative tracking, compressed for a
      dense application UI. See docs/design-direction.md. */

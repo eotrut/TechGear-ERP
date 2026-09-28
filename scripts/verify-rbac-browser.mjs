@@ -32,8 +32,11 @@ const CLI_ENTRY = (() => {
   process.exit(1);
 })();
 
+/** Its own browser session, so it can run beside a screenshot sweep. */
+const SESSION = "-s=rbac-verify";
+
 function cli(...args) {
-  return execFileSync(process.execPath, [CLI_ENTRY, ...args], {
+  return execFileSync(process.execPath, [CLI_ENTRY, SESSION, ...args], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
     maxBuffer: 32 * 1024 * 1024,
@@ -82,8 +85,20 @@ function login(email) {
   cli("fill", "#email", email);
   cli("fill", "#password", PASSWORD);
   cli("click", "button[type=submit]");
-  // Server action plus redirect; give the navigation a moment to settle.
-  cli("--raw", "eval", "() => new Promise((r) => setTimeout(r, 1200))");
+  // Server action plus redirect. Poll for it rather than sleeping a fixed
+  // time: a cold dev server compiling /dashboard for the first time takes
+  // several seconds, and a fixed wait read the URL before it had changed.
+  cli(
+    "--raw",
+    "eval",
+    `async () => {
+      const deadline = Date.now() + 30000;
+      while (Date.now() < deadline && location.pathname.startsWith("/login")) {
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      await new Promise((r) => setTimeout(r, 300));
+    }`,
+  );
 }
 
 function logout() {
@@ -122,6 +137,34 @@ const CRM_ROUTES = [
   "/tickets/tkt_000016",
 ];
 
+/** Finance, Phase 10. Every report, the index and the expense register. */
+const ALL_REPORTS = [
+  "/reports",
+  "/reports/sales",
+  "/reports/gross-profit",
+  "/reports/pl",
+  "/reports/vat",
+  "/reports/aging",
+  "/reports/purchases",
+  "/reports/inventory-valuation",
+  "/reports/stock-movement",
+  "/reports/slow-moving",
+  "/reports/customer-ltv",
+];
+const FINANCE_REPORTS = [
+  "/reports/gross-profit",
+  "/reports/pl",
+  "/reports/vat",
+  "/reports/aging",
+  "/reports/purchases",
+];
+const INVENTORY_REPORTS = [
+  "/reports/inventory-valuation",
+  "/reports/stock-movement",
+  "/reports/slow-moving",
+];
+const EXPORT_DENIED = "You do not have permission to export";
+
 const EXPECTATIONS = [
   {
     role: "Admin",
@@ -135,6 +178,10 @@ const EXPECTATIONS = [
       ...STOCK_ROUTES,
       ...CRM_ROUTES,
       "/activities",
+      ...ALL_REPORTS,
+      "/expenses",
+      "/expenses/new",
+      "/expenses/exp_000001",
     ],
     forbidden: [],
     navExpect: [
@@ -145,22 +192,66 @@ const EXPECTATIONS = [
       "Alerts",
       "Adjustments",
       "Transfers",
+      "Reports",
+      "Expenses",
+    ],
+    content: [
+      {
+        route: "/dashboard",
+        present: ["Revenue today", "Gross margin this month", "Pipeline value", "Performance"],
+      },
+      { route: "/expenses/exp_000001", present: ["Delete", "Save changes"] },
     ],
   },
   {
     role: "Manager",
     email: "manager@techgear.ph",
-    allowed: ["/dashboard", "/audit", "/account", ...STOCK_ROUTES, ...CRM_ROUTES, "/activities"],
+    allowed: [
+      "/dashboard",
+      "/audit",
+      "/account",
+      ...STOCK_ROUTES,
+      ...CRM_ROUTES,
+      "/activities",
+      ...ALL_REPORTS,
+      "/expenses",
+      "/expenses/new",
+    ],
     forbidden: ["/settings", "/settings/users"],
-    navExpect: ["Dashboard", "Audit log", "Stock", "Alerts", "Adjustments", "Transfers"],
+    navExpect: [
+      "Dashboard",
+      "Audit log",
+      "Stock",
+      "Alerts",
+      "Adjustments",
+      "Transfers",
+      "Reports",
+      "Expenses",
+    ],
     navAbsent: ["Settings"],
+    content: [
+      // Managers record and correct expenses; deleting one is an Admin call.
+      { route: "/expenses/exp_000001", present: ["Save changes"], absent: ["Delete"] },
+    ],
   },
   {
     role: "Sales",
     email: "sales@techgear.ph",
     // Sales reads stock and the ledger, and nothing that moves or replans it.
-    allowed: ["/dashboard", "/account", "/inventory", "/inventory/ledger", ...CRM_ROUTES],
+    allowed: [
+      "/dashboard",
+      "/account",
+      "/inventory",
+      "/inventory/ledger",
+      ...CRM_ROUTES,
+      "/reports",
+      "/reports/sales",
+      "/reports/customer-ltv",
+    ],
     forbidden: [
+      ...FINANCE_REPORTS,
+      ...INVENTORY_REPORTS,
+      "/expenses/new",
       "/audit",
       "/settings",
       "/settings/users",
@@ -175,9 +266,27 @@ const EXPECTATIONS = [
       // Everybody's activities are a manager's view.
       "/activities",
     ],
-    navExpect: ["Dashboard", "Stock", "Ledger", "Directory", "Leads", "My tasks", "Tickets"],
-    navAbsent: ["Audit log", "Settings", "Adjustments", "Transfers", "All activities"],
+    navExpect: [
+      "Dashboard",
+      "Stock",
+      "Ledger",
+      "Directory",
+      "Leads",
+      "My tasks",
+      "Tickets",
+      "Reports",
+    ],
+    navAbsent: ["Audit log", "Settings", "Adjustments", "Transfers", "All activities", "Expenses"],
     content: [
+      // Their own figures, and nothing from the finance tiles.
+      {
+        route: "/dashboard",
+        present: ["Your revenue today", "Your pipeline", "Your tasks"],
+        absent: ["Gross margin", "Inventory at cost"],
+      },
+      { route: "/reports", present: ["Customer lifetime value"], absent: ["Profit and loss"] },
+      { route: "/reports/sales?by=salesperson", present: ["Showing your own sales"] },
+      { route: "/api/export/reports/pl", present: [EXPORT_DENIED] },
       {
         route: "/inventory",
         // Cost is stripped on the server for roles without products.viewCost.
@@ -190,8 +299,19 @@ const EXPECTATIONS = [
   {
     role: "Warehouse",
     email: "warehouse@techgear.ph",
-    allowed: ["/dashboard", "/account", ...STOCK_ROUTES, "/customers", "/activities/mine"],
+    allowed: [
+      "/dashboard",
+      "/account",
+      ...STOCK_ROUTES,
+      "/customers",
+      "/activities/mine",
+      "/reports",
+      ...INVENTORY_REPORTS,
+    ],
     forbidden: [
+      "/reports/sales",
+      "/reports/customer-ltv",
+      ...FINANCE_REPORTS,
       "/audit",
       "/settings",
       "/settings/users",
@@ -213,9 +333,17 @@ const EXPECTATIONS = [
       "Transfers",
       "Directory",
       "My tasks",
+      "Reports",
     ],
-    navAbsent: ["Audit log", "Settings", "Leads", "Tickets", "All activities"],
+    navAbsent: ["Audit log", "Settings", "Leads", "Tickets", "All activities", "Expenses"],
     content: [
+      // Warehouse never sees what customers paid (D-10): no revenue anywhere.
+      {
+        route: "/dashboard",
+        present: ["Orders to pack", "Deliveries expected", "Inventory at cost"],
+        absent: ["Revenue", "Gross margin", "Pipeline"],
+      },
+      { route: "/api/export/reports/sales", present: [EXPORT_DENIED] },
       { route: "/customers", absent: ["Lifetime value"], present: ["Segment"] },
       { route: "/inventory", present: ["Value at cost", "Adjust stock", "New transfer"] },
       { route: "/inventory/transfers/trf_000005", present: ["Receive", "Recall"] },

@@ -50,6 +50,15 @@ const pairs = [
   ["D danger button #C0392F / canvas (shape)", "#C0392F", DC, 3],
   ["D hairline #23252A / canvas (visible)", "#23252A", DC, 1.15],
   ["D hairline #23252A / surface-1", "#23252A", DS1, 1.08],
+  // Chart marks are graphics, so WCAG 1.4.11 asks 3:1. The comparison ghost is
+  // deliberately recessive; it only has to be seen, and its values are always
+  // in the tooltip and the table beneath the chart.
+  ["L chart-1 #00859C / canvas (mark 3:1)", "#00859C", LC, 3],
+  ["L chart-2 #E0622E / canvas (mark 3:1)", "#E0622E", LC, 3],
+  ["L chart-compare #9AA1AA / canvas (ghost)", "#9AA1AA", LC, 2.4],
+  ["D chart-1 #1AA2B8 / canvas (mark 3:1)", "#1AA2B8", DC, 3],
+  ["D chart-2 #D95926 / canvas (mark 3:1)", "#D95926", DC, 3],
+  ["D chart-compare #5A616B / canvas (ghost)", "#5A616B", DC, 2.4],
 ];
 let fail = 0;
 for (const [label, a, b, min] of pairs) {

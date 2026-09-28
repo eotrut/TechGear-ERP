@@ -9,6 +9,10 @@ import { chance, intBetween, pick } from "./lib/helpers";
  * Twelve months of operating expenses, so the profit and loss view has a real
  * cost side rather than just COGS.
  *
+ * Sized for a retailer of this turnover: operating costs land near a third
+ * of net sales, so a 40-odd percent gross margin leaves a thin single-digit
+ * operating profit, with the slow months after the holidays dipping below it.
+ *
  * Recurring lines (rent, salaries, utilities) land every month with small
  * variation. Advertising follows the sales calendar, because a retailer spends
  * hardest into 11.11 and 12.12.
@@ -26,28 +30,28 @@ const MONTHLY: ExpensePlan[] = [
   {
     category: "RENT",
     description: "Warehouse and showroom rent, Quezon City",
-    basePhp: 185000,
+    basePhp: 118000,
     variance: 0,
     vatable: true,
   },
   {
     category: "RENT",
     description: "Cebu hub storage rent",
-    basePhp: 62000,
+    basePhp: 38500,
     variance: 0,
     vatable: true,
   },
   {
     category: "SALARIES",
     description: "Payroll, retail and warehouse staff",
-    basePhp: 428000,
+    basePhp: 236000,
     variance: 0.06,
     vatable: false,
   },
   {
     category: "UTILITIES",
     description: "Meralco and water",
-    basePhp: 34500,
+    basePhp: 24800,
     variance: 0.22,
     vatable: true,
   },
@@ -68,14 +72,14 @@ const MONTHLY: ExpensePlan[] = [
   {
     category: "SHIPPING",
     description: "Courier consolidated billing",
-    basePhp: 96000,
+    basePhp: 54000,
     variance: 0.35,
     vatable: true,
   },
   {
     category: "SUPPLIES",
     description: "Packaging, bubble wrap and cartons",
-    basePhp: 27400,
+    basePhp: 21400,
     variance: 0.3,
     vatable: true,
   },

@@ -1,6 +1,7 @@
 import type { Role } from "@prisma/client";
 import {
   ArrowLeftRight,
+  Banknote,
   BellRing,
   Boxes,
   ChartColumn,
@@ -236,8 +237,20 @@ export const navigation: NavGroup[] = [
   {
     label: "Finance",
     items: [
-      { label: "Reports", href: "/reports", icon: ChartColumn, permission: "reports.sales" },
-      { label: "Expenses", href: "/expenses", icon: Wallet, permission: "expenses.view" },
+      {
+        label: "Reports",
+        href: "/reports",
+        built: true,
+        icon: ChartColumn,
+        permission: "reports.view",
+      },
+      {
+        label: "Expenses",
+        href: "/expenses",
+        built: true,
+        icon: Banknote,
+        permission: "expenses.view",
+      },
     ],
   },
   {
@@ -312,6 +325,18 @@ const segmentLabels: Record<string, string> = {
   returns: "Returns",
   warranty: "Warranty",
   promos: "Promos",
+  reports: "Reports",
+  expenses: "Expenses",
+  sales: "Sales",
+  "gross-profit": "Gross profit",
+  "inventory-valuation": "Inventory valuation",
+  "stock-movement": "Stock movement",
+  "slow-moving": "Slow-moving stock",
+  purchases: "Purchases",
+  aging: "Aging",
+  "customer-ltv": "Customer lifetime value",
+  vat: "VAT summary",
+  pl: "Profit and loss",
 };
 
 /** Seeded ids look like prd_000001; cuids are a long opaque run of characters. */

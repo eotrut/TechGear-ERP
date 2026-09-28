@@ -26,6 +26,10 @@ const CLI_DIR = ".playwright-cli";
 const PAGES = {
   login: { route: "/login", auth: false },
   dashboard: { route: "/dashboard", auth: true },
+  // The dashboard is role-aware, so each role gets its own capture.
+  "dashboard-manager": { route: "/dashboard?range=90d", auth: true, as: "manager" },
+  "dashboard-sales": { route: "/dashboard", auth: true, as: "sales" },
+  "dashboard-warehouse": { route: "/dashboard", auth: true, as: "warehouse" },
   design: { route: "/design", auth: true },
   account: { route: "/account", auth: true },
   audit: { route: "/audit", auth: true },
@@ -109,11 +113,30 @@ const PAGES = {
   // The register, and the post-sale screen for the seeded split POS sale.
   pos: { route: "/pos", auth: true },
   "pos-receipt": { route: "/pos/receipt/ord_000016", auth: true },
+  // Finance and reports. Ranges are relative to the seed's "now", like the data.
+  reports: { route: "/reports", auth: true },
+  "report-sales": { route: "/reports/sales", auth: true },
+  "report-sales-channel": { route: "/reports/sales?range=12m&by=channel", auth: true },
+  "report-gross-profit": { route: "/reports/gross-profit?range=12m", auth: true },
+  "report-pl": { route: "/reports/pl?range=12m", auth: true },
+  "report-vat": { route: "/reports/vat?range=ytd", auth: true },
+  "report-aging": { route: "/reports/aging", auth: true },
+  "report-purchases": { route: "/reports/purchases?range=12m", auth: true },
+  "report-valuation": { route: "/reports/inventory-valuation", auth: true },
+  "report-stock-movement": { route: "/reports/stock-movement?range=90d", auth: true },
+  "report-slow-moving": { route: "/reports/slow-moving", auth: true },
+  "report-customer-ltv": { route: "/reports/customer-ltv?range=12m", auth: true },
+  expenses: { route: "/expenses", auth: true },
+  "expense-new": { route: "/expenses/new", auth: true },
+  "expense-detail": { route: "/expenses/exp_000001", auth: true },
 };
 
-/** Admin sees the most, so it is the account used for authenticated captures. */
-const DEMO_EMAIL = "admin@techgear.ph";
+/**
+ * Admin sees the most, so it is the account used for authenticated captures
+ * unless a page names another role with `as`.
+ */
 const DEMO_PASSWORD = "techgear123";
+const emailFor = (role = "admin") => `${role}@techgear.ph`;
 
 const VIEWPORTS = [
   { label: "1440", width: 1440, height: 900 },
@@ -191,9 +214,10 @@ rmSync(CLI_DIR, { recursive: true, force: true });
 
 cli("open", `${BASE_URL}/login`);
 
-function signIn() {
+function signIn(role) {
+  cli("cookie-clear");
   cli("goto", `${BASE_URL}/login`);
-  cli("fill", "#email", DEMO_EMAIL);
+  cli("fill", "#email", emailFor(role));
   cli("fill", "#password", DEMO_PASSWORD);
   cli("click", "button[type=submit]");
   cli("--raw", "eval", "() => new Promise((r) => setTimeout(r, 1500))");
@@ -204,18 +228,20 @@ function signOut() {
 }
 
 let shots = 0;
-let signedIn = false;
+/** The role currently signed in, or null when signed out. */
+let signedInAs = null;
 
 for (const name of targets) {
   const page = PAGES[name];
 
   // Authenticated pages need a session; the login page needs the opposite.
-  if (page.auth && !signedIn) {
-    signIn();
-    signedIn = true;
-  } else if (!page.auth && signedIn) {
+  const role = page.as ?? "admin";
+  if (page.auth && signedInAs !== role) {
+    signIn(role);
+    signedInAs = role;
+  } else if (!page.auth && signedInAs) {
     signOut();
-    signedIn = false;
+    signedInAs = null;
   }
 
   for (const theme of THEMES) {

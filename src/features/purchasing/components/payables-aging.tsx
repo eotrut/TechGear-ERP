@@ -16,7 +16,13 @@ import { AGING_BUCKET_LABEL, AGING_BUCKETS, type AgingTotals } from "../services
 const th =
   "px-3 py-2 text-[11px] font-medium tracking-[0.06em] text-ink-subtle uppercase whitespace-nowrap";
 
-export function AgingStrip({ totals }: { totals: AgingTotals }) {
+export function AgingStrip({
+  totals,
+  totalLabel = "Total owed",
+}: {
+  totals: AgingTotals;
+  totalLabel?: string;
+}) {
   const cells = [
     ...AGING_BUCKETS.map((bucket) => ({
       label: AGING_BUCKET_LABEL[bucket],
@@ -24,7 +30,7 @@ export function AgingStrip({ totals }: { totals: AgingTotals }) {
       late: bucket !== "current",
       severe: bucket === "d61_90" || bucket === "d90_plus",
     })),
-    { label: "Total owed", value: totals.total, late: false, severe: false },
+    { label: totalLabel, value: totals.total, late: false, severe: false },
   ];
 
   return (

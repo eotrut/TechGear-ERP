@@ -33,6 +33,7 @@ const SEQUENCES = {
   // Goods received notes: one per delivery, so a PO can have several.
   GRN: { table: Prisma.raw(`"PurchaseReceipt"`), column: Prisma.raw(`reference`), width: 4 },
   SB: { table: Prisma.raw(`"SupplierBill"`), column: Prisma.raw(`"billNumber"`), width: 4 },
+  EXP: { table: Prisma.raw(`"Expense"`), column: Prisma.raw(`reference`), width: 4 },
 } as const;
 
 export type ReferenceKind = keyof typeof SEQUENCES;
