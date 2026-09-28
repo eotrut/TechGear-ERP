@@ -17,8 +17,11 @@ export type ViewTab = {
 
 export function ViewTabs({ tabs, actions }: { tabs: ViewTab[]; actions?: React.ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-1 gap-y-2 border-b border-hairline">
-      <nav aria-label="Views" className="-mb-px flex max-w-full items-center gap-1 overflow-x-auto">
+    <div className="flex max-w-full min-w-0 flex-wrap items-center gap-x-1 gap-y-2 border-b border-hairline">
+      <nav
+        aria-label="Views"
+        className="relative -mb-px flex max-w-full items-center gap-1 overflow-x-auto"
+      >
         {tabs.map((tab) => (
           <Link
             key={tab.label}

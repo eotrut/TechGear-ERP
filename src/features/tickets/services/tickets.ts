@@ -1,5 +1,6 @@
 import type { Prisma, TicketPriority, TicketStatus } from "@prisma/client";
 
+import { notify } from "@/features/notifications/services/notify";
 import { DomainError, InvalidTransitionError, NotFoundError } from "@/lib/errors";
 import { nextReference } from "@/lib/numbering";
 import { can } from "@/lib/rbac/can";
@@ -127,7 +128,7 @@ export async function createTicket(
 
   const now = new Date();
   const ticketNumber = await nextReference(tx, "TKT", now);
-  return tx.ticket.create({
+  const ticket = await tx.ticket.create({
     data: {
       ticketNumber,
       subject: values.subject,
@@ -143,6 +144,16 @@ export async function createTicket(
     },
     select: { id: true, ticketNumber: true, slaDueAt: true, customerId: true },
   });
+
+  await notify(tx, {
+    type: "NEW_TICKET",
+    title: `New ticket: ${ticketNumber}`,
+    body: `${values.subject}, from ${customer.displayName}.`,
+    link: `/tickets/${ticket.id}`,
+    userIds: [assigneeId],
+    excludeUserId: actor.id,
+  });
+  return ticket;
 }
 
 // ------------------------------------------------------------------ comment

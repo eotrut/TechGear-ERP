@@ -1,25 +1,21 @@
 import { FileQuestion } from "lucide-react";
 import Link from "next/link";
 
+import { StatusScreen } from "@/components/feedback/status-screen";
 import { Button } from "@/components/ui/button";
 
+/** A URL that matches no route at all. Records that vanished get the in-shell 404. */
 export default function NotFound() {
   return (
-    <div className="flex min-h-dvh items-center justify-center px-4">
-      <div className="w-full max-w-md text-center">
-        <span className="mb-4 inline-flex size-10 items-center justify-center rounded-md border border-hairline bg-surface-2 text-ink-subtle">
-          <FileQuestion className="size-5" aria-hidden />
-        </span>
-        <h1 className="text-title text-ink">Page not found</h1>
-        <p className="mt-2 text-body-sm text-ink-subtle">
-          That page does not exist, or it may have been moved.
-        </p>
-        <div className="mt-6 flex justify-center">
-          <Button asChild variant="primary">
-            <Link href="/dashboard">Back to dashboard</Link>
-          </Button>
-        </div>
-      </div>
-    </div>
+    <StatusScreen
+      icon={FileQuestion}
+      title="Page not found"
+      description="That page does not exist, or it may have been moved."
+      actions={
+        <Button asChild variant="primary">
+          <Link href="/dashboard">Back to dashboard</Link>
+        </Button>
+      }
+    />
   );
 }

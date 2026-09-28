@@ -36,7 +36,7 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
       <dd className="mt-0.5 font-mono text-lead text-ink" data-numeric>
         {value}
       </dd>
-      {hint ? <p className="text-caption text-ink-subtle">{hint}</p> : null}
+      {hint ? <dd className="text-caption text-ink-subtle">{hint}</dd> : null}
     </div>
   );
 }
@@ -123,11 +123,11 @@ export default async function ProductDetailPage({ params }: { params: Params }) 
         ))}
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex flex-col gap-5">
           <section>
             <h2 className="mb-2 text-section text-ink">Variants</h2>
-            <div className="overflow-x-auto rounded-lg border border-hairline">
+            <div className="relative overflow-x-auto rounded-lg border border-hairline">
               <table className="w-full text-body-sm">
                 <thead>
                   <tr className="border-b border-hairline bg-surface-1">
@@ -171,13 +171,13 @@ export default async function ProductDetailPage({ params }: { params: Params }) 
 
                     return (
                       <tr key={variant.id} className="border-b border-hairline last:border-b-0">
-                        <td className="px-3 py-2">
+                        <td className="min-w-[9rem] px-3 py-2">
                           <span className="text-ink">{variant.optionSummary}</span>
                           {variant.isActive ? null : (
                             <span className="ml-2 text-caption text-ink-subtle">not sellable</span>
                           )}
                           {variant.attributes.length > 0 ? (
-                            <span className="block text-caption text-ink-subtle">
+                            <span className="hidden text-caption text-ink-subtle sm:block">
                               {variant.attributes
                                 .map((attribute) => `${attribute.name}: ${attribute.value}`)
                                 .join(", ")}

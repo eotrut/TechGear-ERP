@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient, StockMovementType, StockReason } from "@prisma/client";
 
+import { notify } from "@/features/notifications/services/notify";
 import { DomainError, InsufficientStockError, NotFoundError } from "@/lib/errors";
 import { movingAverageCost } from "@/lib/stock-math";
 
@@ -188,16 +189,13 @@ async function raiseAlert(
   const code = await warehouseCode(tx, warehouseId);
   const out = alert === "OUT_OF_STOCK";
 
-  await tx.notification.create({
-    data: {
-      targetRole: "WAREHOUSE",
-      type: alert,
-      title: out ? `Out of stock: ${variant.sku}` : `Low stock: ${variant.sku}`,
-      body: out
-        ? `${variant.sku} has nothing left to sell in ${code}.`
-        : `${variant.sku} is down to ${availableAfter} available in ${code}, reorder point ${variant.reorderLevel}.`,
-      link: `/inventory/alerts?warehouseId=${warehouseId}`,
-    },
+  await notify(tx, {
+    type: alert,
+    title: out ? `Out of stock: ${variant.sku}` : `Low stock: ${variant.sku}`,
+    body: out
+      ? `${variant.sku} has nothing left to sell in ${code}.`
+      : `${variant.sku} is down to ${availableAfter} available in ${code}, reorder point ${variant.reorderLevel}.`,
+    link: `/inventory/alerts?warehouseId=${warehouseId}`,
   });
 }
 

@@ -1227,17 +1227,19 @@ model Expense {
 
 model Notification {
   id         String           @id @default(cuid())
-  userId     String?                              // null = broadcast to targetRole
-  targetRole Role?
+  userId     String                               // one row per recipient, so read state is theirs alone
+  targetRole Role?                                // the role it reached them through; null when addressed personally
   type       NotificationType
   title      String
   body       String
   link       String?
+  dedupeKey  String?                              // "activity:<id>:overdue"; a key is raised once per recipient
   readAt     DateTime?
   createdAt  DateTime         @default(now())
 
-  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, dedupeKey])
   @@index([userId, readAt, createdAt])
-  @@index([targetRole, createdAt])
+  @@index([userId, createdAt])
 }

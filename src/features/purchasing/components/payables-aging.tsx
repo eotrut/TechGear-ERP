@@ -68,7 +68,7 @@ export function AgingStrip({
 export function SupplierAgingTable({ rows }: { rows: SupplierAgingRow[] }) {
   if (rows.length === 0) return null;
   return (
-    <div className="overflow-x-auto rounded-lg border border-hairline">
+    <div className="relative overflow-x-auto rounded-lg border border-hairline">
       <table className="w-full text-body-sm">
         <thead>
           <tr className="border-b border-hairline bg-surface-1">

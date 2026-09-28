@@ -98,7 +98,7 @@ export default async function BillPage({ params }: { params: Params }) {
         ) : null}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
         <div className="flex min-w-0 flex-col gap-6">
           <section>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-4">
@@ -141,7 +141,7 @@ export default async function BillPage({ params }: { params: Params }) {
                   : "Nothing paid yet. Each payment against this bill is listed here."}
               </p>
             ) : (
-              <div className="overflow-x-auto rounded-lg border border-hairline">
+              <div className="relative overflow-x-auto rounded-lg border border-hairline">
                 <table className="w-full text-body-sm">
                   <thead>
                     <tr className="border-b border-hairline bg-surface-1">

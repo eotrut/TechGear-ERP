@@ -295,8 +295,9 @@ describe.skipIf(databaseUrl === "")("stock ledger", () => {
       expect((await sell(2)).alert).toBeNull(); // 5 -> 3, already low
       expect((await sell(3)).alert).toBe("OUT_OF_STOCK"); // 3 -> 0
 
+      // The fixture's warehouse user is in the audience, and hears each crossing once.
       const alerts = await db.notification.findMany({
-        where: { title: { contains: sku } },
+        where: { title: { contains: sku }, userId: f.userId },
         select: { type: true },
         orderBy: { createdAt: "asc" },
       });

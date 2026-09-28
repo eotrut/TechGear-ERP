@@ -121,7 +121,7 @@ export default async function TicketPage({ params }: { params: Params }) {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex min-w-0 flex-col gap-5">
           <ol className="flex flex-col gap-3" aria-label="Conversation">
             <li className="rounded-lg border border-hairline bg-surface-1 p-3">

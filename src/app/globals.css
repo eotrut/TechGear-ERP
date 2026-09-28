@@ -105,6 +105,9 @@
   --shadow-overlay:
     0 1px 2px rgb(13 17 20 / 0.06), 0 8px 24px -4px rgb(13 17 20 / 0.12),
     0 0 0 1px rgb(13 17 20 / 0.04);
+  /* Behind dialogs, the palette and the mobile drawer. Tinted with the ink,
+     never pure black, per the anti-slop checklist. */
+  --scrim: rgb(13 17 20 / 0.42);
 }
 
 .dark {
@@ -178,6 +181,7 @@
 
   --shadow-overlay:
     0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -4px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.06);
+  --scrim: rgb(4 5 7 / 0.66);
 }
 
 @theme inline {
@@ -278,6 +282,7 @@
   --radius-xl: var(--radius-xl);
 
   --shadow-overlay: var(--shadow-overlay);
+  --color-scrim: var(--scrim);
 }
 
 @layer base {

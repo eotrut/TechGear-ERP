@@ -4,7 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
+import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,7 +46,7 @@ function CategoryFields({
   disabledId?: string;
 }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={`cat-name-${draft.id ?? "new"}`}>Name</Label>
         <Input
@@ -134,17 +136,10 @@ export function CategoryManager({
     setIsPending(false);
   }
 
-  async function remove(id: string) {
-    setMessage(null);
-    setIsPending(true);
-    const result = await deleteTaxonomyAction({ id, kind: "category" });
-    setMessage(
-      result.ok
-        ? { ok: true, text: result.message ?? "Deleted." }
-        : { ok: false, text: result.error },
-    );
-    if (result.ok) router.refresh();
-    setIsPending(false);
+  // Deleting goes through a confirmation: the row is gone the moment it
+  // succeeds, so the outcome is a toast rather than a line above the table.
+  function remove(id: string) {
+    return deleteTaxonomyAction({ id, kind: "category" });
   }
 
   return (
@@ -189,7 +184,7 @@ export function CategoryManager({
         )
       ) : null}
 
-      <div className="overflow-x-auto rounded-lg border border-hairline">
+      <div className="relative overflow-x-auto rounded-lg border border-hairline">
         <table className="w-full text-body-sm">
           <thead>
             <tr className="border-b border-hairline bg-surface-1">
@@ -287,20 +282,32 @@ export function CategoryManager({
                       </Button>
                     ) : null}
                     {canDelete ? (
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Delete ${category.name}`}
-                        disabled={isPending || category._count.products > 0}
-                        title={
-                          category._count.products > 0
-                            ? "Move its products somewhere else first."
-                            : undefined
+                      <ConfirmDialog
+                        trigger={
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Delete ${category.name}`}
+                            disabled={isPending || category._count.products > 0}
+                            title={
+                              category._count.products > 0
+                                ? "Move its products somewhere else first."
+                                : undefined
+                            }
+                          >
+                            <Trash2 aria-hidden />
+                          </Button>
                         }
-                        onClick={() => remove(category.id)}
-                      >
-                        <Trash2 aria-hidden />
-                      </Button>
+                        title={`Delete ${category.name}?`}
+                        description="It has no products, so nothing else changes. The audit log keeps a record of the deletion."
+                        confirmLabel="Delete category"
+                        pendingLabel="Deleting"
+                        onConfirm={() => remove(category.id)}
+                        onDone={(message) => {
+                          toast.success(message ?? "Deleted.");
+                          router.refresh();
+                        }}
+                      />
                     ) : null}
                   </td>
                 </tr>

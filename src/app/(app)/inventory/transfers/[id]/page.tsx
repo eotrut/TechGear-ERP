@@ -130,10 +130,10 @@ export default async function TransferDetailPage({ params }: { params: Params })
         </span>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
         <section>
           <h2 className="mb-2 text-section text-ink">Lines</h2>
-          <div className="overflow-x-auto rounded-lg border border-hairline">
+          <div className="relative overflow-x-auto rounded-lg border border-hairline">
             <table className="w-full text-body-sm">
               <thead>
                 <tr className="border-b border-hairline bg-surface-1">

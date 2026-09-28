@@ -8,8 +8,17 @@ import { useSidebar } from "@/components/layout/sidebar-context";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { UserMenu } from "@/components/layout/user-menu";
 import { Button } from "@/components/ui/button";
+import { NotificationBell } from "@/features/notifications/components/notification-bell";
+import type { NotificationSummary } from "@/features/notifications/queries";
+import { PaletteTrigger } from "@/features/search/components/command-palette";
 
-export function TopBar({ user }: { user: { name: string; email: string; role: Role } }) {
+export function TopBar({
+  user,
+  notifications,
+}: {
+  user: { name: string; email: string; role: Role };
+  notifications: NotificationSummary;
+}) {
   const { open } = useSidebar();
 
   return (
@@ -27,6 +36,10 @@ export function TopBar({ user }: { user: { name: string; email: string; role: Ro
       <Breadcrumbs role={user.role} />
 
       <div className="ml-auto flex items-center gap-1">
+        <div className="mr-1">
+          <PaletteTrigger />
+        </div>
+        <NotificationBell initial={notifications} />
         <ThemeToggle />
         <UserMenu name={user.name} email={user.email} role={user.role} />
       </div>

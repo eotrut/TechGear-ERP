@@ -100,36 +100,40 @@ export function InvoiceView({ doc }: { doc: SalesDocument }) {
       </table>
 
       <section className="mt-4 flex justify-end">
-        <dl className="w-[78mm]">
-          {doc.totals.map((total) => (
-            <div
-              key={total.label}
-              className={cn(
-                "flex justify-between gap-4 py-0.5",
-                total.strong &&
-                  "my-1 border-y border-hairline-strong py-1.5 text-[13px] font-semibold",
-              )}
-            >
-              <dt className={total.strong ? "" : "text-ink-muted"}>{total.label}</dt>
-              <dd className="font-mono" data-numeric>
-                {total.value}
-              </dd>
-            </div>
-          ))}
+        <div className="w-[78mm]">
+          <dl>
+            {doc.totals.map((total) => (
+              <div
+                key={total.label}
+                className={cn(
+                  "flex justify-between gap-4 py-0.5",
+                  total.strong &&
+                    "my-1 border-y border-hairline-strong py-1.5 text-[13px] font-semibold",
+                )}
+              >
+                <dt className={total.strong ? "" : "text-ink-muted"}>{total.label}</dt>
+                <dd className="font-mono" data-numeric>
+                  {total.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
           {doc.payments.length > 0 ? (
             <div className="mt-2 border-t border-hairline pt-2">
               <p className="text-[10px] tracking-[0.08em] text-ink-subtle uppercase">Paid by</p>
-              {doc.payments.map((payment, index) => (
-                <div key={index} className="flex justify-between gap-4 py-0.5">
-                  <dt className="text-ink-muted">{payment.label}</dt>
-                  <dd className="font-mono" data-numeric>
-                    {payment.value}
-                  </dd>
-                </div>
-              ))}
+              <dl>
+                {doc.payments.map((payment, index) => (
+                  <div key={index} className="flex justify-between gap-4 py-0.5">
+                    <dt className="text-ink-muted">{payment.label}</dt>
+                    <dd className="font-mono" data-numeric>
+                      {payment.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
             </div>
           ) : null}
-        </dl>
+        </div>
       </section>
 
       <footer className="mt-10 border-t border-hairline pt-3 text-[11px] text-ink-subtle">

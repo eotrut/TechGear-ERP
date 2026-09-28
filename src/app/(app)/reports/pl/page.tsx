@@ -110,7 +110,7 @@ export default async function ProfitAndLossPage({ searchParams }: { searchParams
         title="Statement"
         description="VAT exclusive throughout. Gross profit here is the gross profit report's figure for the same range."
       >
-        <div className="overflow-x-auto rounded-lg border border-hairline">
+        <div className="relative overflow-x-auto rounded-lg border border-hairline">
           <table className="w-full text-body-sm">
             <caption className="sr-only">Profit and loss statement</caption>
             <thead>
@@ -153,7 +153,10 @@ export default async function ProfitAndLossPage({ searchParams }: { searchParams
         </div>
         <p className="text-caption text-ink-subtle">
           Expenses come from the{" "}
-          <Link href="/expenses" className="text-accent-strong hover:underline">
+          <Link
+            href="/expenses"
+            className="text-accent-strong underline decoration-accent-strong/40 underline-offset-2 hover:decoration-accent-strong"
+          >
             expense register
           </Link>{" "}
           net of input VAT. Stock lines come from the ledger at moving-average cost.

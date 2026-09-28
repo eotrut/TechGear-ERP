@@ -123,7 +123,10 @@ character lives. The accent is named **Aqua** after the switch family.
 
 **The accent is scarce.** It appears on the brand mark, the primary action, the
 focus ring, the active nav item and the selected-row indicator. It is never a
-card fill and never a section background.
+card fill and never a section background. Phase 11 added exactly two uses, both
+the same idiom as the ones above: the unread count on the notification bell,
+and the 2px inset bar that marks an unread notification or the row `j` and `k`
+have focused (the active-nav bar, reused).
 
 Note the polarity flip: on dark, the accent is bright and carries **dark** text.
 White on mid-cyan reaches only 3.11:1 and would fail body contrast.
@@ -178,7 +181,8 @@ Applied sparingly. Three things, and only these:
 1. **The brand mark**, once, in the sidebar: a keycap squircle with the faint
    top-edge highlight `DESIGN.md` describes on lifted panels (`.edge-highlight`).
    It is not repeated as decoration anywhere.
-2. **Keyboard-first interaction is the personality.** Command palette, `/` to
+2. **Keyboard-first interaction is the personality.** All of it is built as of
+   Phase 11. Command palette, `/` to
    focus search, `j` and `k` for row navigation, `Enter` to open, barcode input
    permanently focused at POS. For a keyboard shop this reads as intent rather
    than novelty.
@@ -273,10 +277,11 @@ A UI task is not done until it is verified with Playwright CLI screenshots
 npm run dev          # in one terminal
 npm run shoot        # captures every page in the manifest, fails on console errors
 npm run check:contrast
+npm run check:a11y   # axe, WCAG 2.1 A and AA, every page in both themes
 ```
 
-`scripts/shoot.mjs` holds the page manifest. Add each new page to it as it
-lands. It fails the run if any console error or warning appears that is not
+`scripts/pages.mjs` holds the page manifest, shared by both sweeps. Add each
+new page to it as it lands. It fails the run if any console error or warning appears that is not
 known dev-server noise, so "clean console" is enforced rather than eyeballed.
 
 Screenshots land in `docs/screenshots/<page>-<light|dark>-<size>.png`.

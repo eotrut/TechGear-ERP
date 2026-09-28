@@ -4,7 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
+import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,7 +62,7 @@ function SupplierFields({ draft, onChange }: { draft: Draft; onChange: (next: Dr
   const id = draft.id ?? "new";
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={`sup-code-${id}`}>Code</Label>
         <Input
@@ -200,17 +202,10 @@ export function SupplierManager({
     setIsPending(false);
   }
 
-  async function remove(id: string) {
-    setMessage(null);
-    setIsPending(true);
-    const result = await deleteSupplierAction({ id });
-    setMessage(
-      result.ok
-        ? { ok: true, text: result.message ?? "Deleted." }
-        : { ok: false, text: result.error },
-    );
-    if (result.ok) router.refresh();
-    setIsPending(false);
+  // Deleting goes through a confirmation: the row is gone the moment it
+  // succeeds, so the outcome is a toast rather than a line above the table.
+  function remove(id: string) {
+    return deleteSupplierAction({ id });
   }
 
   return (
@@ -255,7 +250,7 @@ export function SupplierManager({
         )
       ) : null}
 
-      <div className="overflow-x-auto rounded-lg border border-hairline">
+      <div className="relative overflow-x-auto rounded-lg border border-hairline">
         <table className="w-full text-body-sm">
           <thead>
             <tr className="border-b border-hairline bg-surface-1">
@@ -389,20 +384,32 @@ export function SupplierManager({
                       </Button>
                     ) : null}
                     {canDelete ? (
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Delete ${supplier.name}`}
-                        disabled={isPending || supplier._count.purchaseOrders > 0}
-                        title={
-                          supplier._count.purchaseOrders > 0
-                            ? "This supplier has purchase history. Deactivate it instead."
-                            : undefined
+                      <ConfirmDialog
+                        trigger={
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Delete ${supplier.name}`}
+                            disabled={isPending || supplier._count.purchaseOrders > 0}
+                            title={
+                              supplier._count.purchaseOrders > 0
+                                ? "This supplier has purchase history. Deactivate it instead."
+                                : undefined
+                            }
+                          >
+                            <Trash2 aria-hidden />
+                          </Button>
                         }
-                        onClick={() => remove(supplier.id)}
-                      >
-                        <Trash2 aria-hidden />
-                      </Button>
+                        title={`Delete ${supplier.name}?`}
+                        description="It has no purchase history, so nothing else changes. The audit log keeps a record of the deletion."
+                        confirmLabel="Delete supplier"
+                        pendingLabel="Deleting"
+                        onConfirm={() => remove(supplier.id)}
+                        onDone={(message) => {
+                          toast.success(message ?? "Deleted.");
+                          router.refresh();
+                        }}
+                      />
                     ) : null}
                   </td>
                 </tr>

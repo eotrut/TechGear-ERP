@@ -123,7 +123,7 @@ export function AppSidebar({ role }: { role: Role }) {
       >
         <div
           className={cn(
-            "absolute inset-0 bg-black/50 transition-opacity duration-150",
+            "absolute inset-0 bg-scrim transition-opacity duration-150",
             isOpen ? "opacity-100" : "opacity-0",
           )}
           onClick={close}

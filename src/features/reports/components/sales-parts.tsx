@@ -44,29 +44,31 @@ export function RevenueBridge({ totals }: { totals: SalesFigures }) {
     { label: "Refunds", value: totals.refunds, sign: "-" },
   ];
   return (
-    <dl className="flex flex-col text-body-sm">
-      {rows.map((row) => (
-        <div
-          key={row.label}
-          className="flex items-baseline justify-between gap-3 border-b border-hairline py-2"
-        >
-          <dt className="text-ink-muted">{row.label}</dt>
-          <dd data-numeric className="font-mono text-ink">
-            {row.sign === "-" && row.value > 0 ? "-" : row.sign === "+" ? "+" : ""}
-            {formatAmount(row.value)}
+    <div className="flex flex-col text-body-sm">
+      <dl className="flex flex-col">
+        {rows.map((row) => (
+          <div
+            key={row.label}
+            className="flex items-baseline justify-between gap-3 border-b border-hairline py-2"
+          >
+            <dt className="text-ink-muted">{row.label}</dt>
+            <dd data-numeric className="font-mono text-ink">
+              {row.sign === "-" && row.value > 0 ? "-" : row.sign === "+" ? "+" : ""}
+              {formatAmount(row.value)}
+            </dd>
+          </div>
+        ))}
+        <div className="flex items-baseline justify-between gap-3 py-2">
+          <dt className="font-medium text-ink">Revenue</dt>
+          <dd data-numeric className="font-mono font-medium text-ink">
+            {formatPeso(totals.revenue)}
           </dd>
         </div>
-      ))}
-      <div className="flex items-baseline justify-between gap-3 py-2">
-        <dt className="font-medium text-ink">Revenue</dt>
-        <dd data-numeric className="font-mono font-medium text-ink">
-          {formatPeso(totals.revenue)}
-        </dd>
-      </div>
+      </dl>
       <p className="text-caption text-ink-subtle">
         VAT inclusive. Includes {formatPeso(totals.vat)} output VAT.
       </p>
-    </dl>
+    </div>
   );
 }
 

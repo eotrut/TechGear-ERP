@@ -95,7 +95,7 @@ export default async function ClaimDetailPage({ params }: { params: Params }) {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
         <div className="flex min-w-0 flex-col gap-6">
           <section>
             <h2 className="mb-2 text-section text-ink">Reported fault</h2>

@@ -266,7 +266,7 @@ export function OrderForm({
         event.preventDefault();
         submit(paying ? "paid" : "place");
       }}
-      className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start"
+      className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start"
       noValidate
     >
       <div className="flex min-w-0 flex-col gap-5">
@@ -670,45 +670,42 @@ export function OrderForm({
           <div className="col-span-2">{lineError(errors.manualDiscountValue?.message)}</div>
         </div>
 
-        <dl className="flex flex-col gap-1 border-t border-hairline pt-3 text-body-sm">
-          {pricing ? (
-            <>
-              <Row label="Subtotal" value={formatPeso(pricing.subtotalCentavos)} />
-              {pricing.lineDiscountCentavos > 0 ? (
-                <Row
-                  label="Line discounts"
-                  value={`-${formatPeso(pricing.lineDiscountCentavos)}`}
-                />
-              ) : null}
-              {pricing.promoDiscountCentavos > 0 ? (
-                <Row
-                  label={`Promo ${promo?.code ?? ""}`}
-                  value={`-${formatPeso(pricing.promoDiscountCentavos)}`}
-                />
-              ) : null}
-              {pricing.manualDiscountCentavos > 0 ? (
-                <Row
-                  label="Order discount"
-                  value={`-${formatPeso(pricing.manualDiscountCentavos)}`}
-                />
-              ) : null}
+        {pricing ? (
+          <dl className="flex flex-col gap-1 border-t border-hairline pt-3 text-body-sm">
+            <Row label="Subtotal" value={formatPeso(pricing.subtotalCentavos)} />
+            {pricing.lineDiscountCentavos > 0 ? (
+              <Row label="Line discounts" value={`-${formatPeso(pricing.lineDiscountCentavos)}`} />
+            ) : null}
+            {pricing.promoDiscountCentavos > 0 ? (
               <Row
-                label="Shipping"
-                value={pricing.shippingCentavos > 0 ? formatPeso(pricing.shippingCentavos) : "Free"}
+                label={`Promo ${promo?.code ?? ""}`}
+                value={`-${formatPeso(pricing.promoDiscountCentavos)}`}
               />
-              <div className="mt-1 flex items-baseline justify-between border-t border-hairline pt-2">
-                <dt className="font-medium text-ink">Total</dt>
-                <dd className="font-mono text-lead font-medium text-ink" data-numeric>
-                  {formatPeso(pricing.totalCentavos)}
-                </dd>
-              </div>
-              <Row label="VAT included, 12%" value={formatPeso(pricing.vatCentavos)} subtle />
-              <Row label="VATable sales" value={formatPeso(pricing.vatableSalesCentavos)} subtle />
-            </>
-          ) : (
-            <p className="text-ink-subtle">{priced.error ?? "Add an item to see the total."}</p>
-          )}
-        </dl>
+            ) : null}
+            {pricing.manualDiscountCentavos > 0 ? (
+              <Row
+                label="Order discount"
+                value={`-${formatPeso(pricing.manualDiscountCentavos)}`}
+              />
+            ) : null}
+            <Row
+              label="Shipping"
+              value={pricing.shippingCentavos > 0 ? formatPeso(pricing.shippingCentavos) : "Free"}
+            />
+            <div className="mt-1 flex items-baseline justify-between border-t border-hairline pt-2">
+              <dt className="font-medium text-ink">Total</dt>
+              <dd className="font-mono text-lead font-medium text-ink" data-numeric>
+                {formatPeso(pricing.totalCentavos)}
+              </dd>
+            </div>
+            <Row label="VAT included, 12%" value={formatPeso(pricing.vatCentavos)} subtle />
+            <Row label="VATable sales" value={formatPeso(pricing.vatableSalesCentavos)} subtle />
+          </dl>
+        ) : (
+          <p className="border-t border-hairline pt-3 text-body-sm text-ink-subtle">
+            {priced.error ?? "Add an item to see the total."}
+          </p>
+        )}
         {pricing && priced.error === null && overCap ? (
           <p role="alert" className="text-caption text-danger" data-numeric>
             Manual discounts come to {(manualBps / 100).toFixed(2)} percent. Your limit is{" "}

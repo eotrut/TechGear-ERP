@@ -339,7 +339,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             ]}
           />
 
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             <ReportSection title={`Revenue ${byPeriod(range.granularity)}`}>
               <ChartPanel>
                 <TrendChart
@@ -372,7 +372,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             </ReportSection>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
             <ReportSection title="By category">
               <BarList
                 caption="Merchandise by category"

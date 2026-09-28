@@ -81,7 +81,7 @@ export default async function CustomerLtvPage({ searchParams }: { searchParams: 
         ]}
       />
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <ReportSection
           title="Lifetime value by segment"
           description="Where the value sits. Segments are recomputed on every completed order and nightly."

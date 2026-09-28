@@ -5,7 +5,7 @@ keyboards, keycaps, switches, mice, headsets and streaming gear. It covers
 inventory, sales and POS, purchasing, CRM and finance reporting across seven
 sales channels.
 
-> **Status: Phase 10.** Tooling, the design system, the app shell, the
+> **Status: Phase 11.** Tooling, the design system, the app shell, the
 > database schema, the seeded demo data, authentication with role-based access
 > control and the audit log, the catalogue, the stock ledger (levels,
 > movements, adjustments, transfers, alerts and reorder suggestions), the CRM
@@ -24,7 +24,15 @@ sales channels.
 > profit, profit and loss, VAT, aging, purchases, inventory valuation, stock
 > movement, slow-moving stock, customer lifetime value), each with a date range,
 > a comparison period and CSV export, and an expense register that feeds the
-> P&L and the VAT summary. Notifications and the final polish pass are next.
+> P&L and the VAT summary. Phase 11 added the cross-cutting layer: a Ctrl/Cmd+K
+> command palette (every page and create action the role can reach, plus
+> products, customers, orders and purchase orders by name or number), a
+> notification centre with a live bell (low and out of stock, new tickets,
+> overdue tasks, stock received, warranty claims, each addressed by
+> permission), error boundaries and in-shell 404s, a loading skeleton shaped
+> like every page, confirmations on every destructive action, `j`/`k` row
+> navigation, drawn product illustrations, and an accessibility pass enforced
+> by an axe sweep over every page in both themes.
 > See [docs/PLAN.md](docs/PLAN.md) for the plan and phase order.
 
 ## Setup
@@ -42,8 +50,8 @@ If port 3000 is taken, run `npx next dev -p 3100` with `AUTH_URL` set to the
 same origin (`AUTH_URL=http://localhost:3100`). Auth.js rebuilds request URLs
 from it, so a mismatch sends the middleware's 403 rewrite to the wrong server.
 
-Product images are placeholders fetched once and committed. If you need to
-re-fetch them, run `npm run db:images`.
+Product images are flat illustrations drawn by a script in each product's own
+colourway and committed. To redraw them, run `npm run db:images`.
 
 ## Demo accounts
 
@@ -109,6 +117,7 @@ refuses to start rather than failing later at the first query.
 | `npm run format`                        | Prettier                                                  |
 | `npm run check:contrast`                | Verifies every theme token pair against WCAG thresholds   |
 | `npm run shoot`                         | Playwright CLI screenshot sweep; fails on console errors  |
+| `npm run check:a11y`                    | axe, WCAG 2.1 A and AA, every page in light and dark      |
 | `npm test`                              | Unit tests, then the stock ledger against real Postgres   |
 | `npm run test:unit` / `test:db`         | Either half on its own                                    |
 | `npm run verify:rbac`                   | Drives a browser through all four roles                   |

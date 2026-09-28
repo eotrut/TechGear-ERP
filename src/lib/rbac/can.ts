@@ -51,3 +51,11 @@ export function canAnyOf(role: Role | null | undefined, permissions: Permission[
 export function permissionsFor(role: Role): Permission[] {
   return (Object.keys(MATRIX) as Permission[]).filter((permission) => can(role, permission));
 }
+
+/**
+ * Every role holding a permission. Used to address a notification to "whoever
+ * can act on this" without naming a role anywhere outside the matrix.
+ */
+export function rolesWith(permission: Permission): Role[] {
+  return Object.keys(MATRIX[permission]) as Role[];
+}

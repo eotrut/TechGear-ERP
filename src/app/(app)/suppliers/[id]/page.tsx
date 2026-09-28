@@ -144,7 +144,7 @@ export default async function SupplierPage({ params }: { params: Params }) {
         </section>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <section className="min-w-0">
           <div className="mb-2 flex items-baseline justify-between gap-3">
             <h2 className="text-section text-ink">Purchase orders</h2>
@@ -162,7 +162,7 @@ export default async function SupplierPage({ params }: { params: Params }) {
               Nothing ordered from {supplier.name} yet.
             </p>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-hairline">
+            <div className="relative overflow-x-auto rounded-lg border border-hairline">
               <table className="w-full text-body-sm">
                 <thead>
                   <tr className="border-b border-hairline bg-surface-1">
@@ -225,7 +225,7 @@ export default async function SupplierPage({ params }: { params: Params }) {
               Nothing has arrived yet. On-time and defect rates start with the first delivery.
             </p>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-hairline">
+            <div className="relative overflow-x-auto rounded-lg border border-hairline">
               <table className="w-full text-body-sm">
                 <thead>
                   <tr className="border-b border-hairline bg-surface-1">
@@ -291,7 +291,7 @@ export default async function SupplierPage({ params }: { params: Params }) {
       {viewBills && supplier.bills.length > 0 ? (
         <section>
           <h2 className="mb-2 text-section text-ink">Recent bills</h2>
-          <div className="overflow-x-auto rounded-lg border border-hairline">
+          <div className="relative overflow-x-auto rounded-lg border border-hairline">
             <table className="w-full text-body-sm">
               <thead>
                 <tr className="border-b border-hairline bg-surface-1">

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 
 import { buildCrumbs } from "@/lib/navigation";
+import { cn } from "@/lib/utils";
 
 export function Breadcrumbs({ role }: { role: Role }) {
   const pathname = usePathname();
@@ -17,9 +18,23 @@ export function Breadcrumbs({ role }: { role: Role }) {
     <nav aria-label="Breadcrumb" className="min-w-0">
       <ol className="flex min-w-0 items-center gap-1 text-body-sm">
         {crumbs.map((crumb, index) => (
-          <li key={crumb.href} className="flex min-w-0 items-center gap-1">
+          <li
+            key={crumb.href}
+            className={cn(
+              "flex min-w-0 items-center gap-1",
+              // On a phone only the parent and the current page fit without
+              // truncating every crumb to three letters; the rest return at sm.
+              index < crumbs.length - 2 && "hidden sm:flex",
+            )}
+          >
             {index > 0 ? (
-              <ChevronRight className="size-3.5 shrink-0 text-ink-subtle" aria-hidden />
+              <ChevronRight
+                className={cn(
+                  "size-3.5 shrink-0 text-ink-subtle",
+                  index === crumbs.length - 2 && "hidden sm:block",
+                )}
+                aria-hidden
+              />
             ) : null}
 
             {crumb.isCurrent ? (

@@ -61,6 +61,7 @@ npm run typecheck        # tsc --noEmit
 npm run lint             # eslint
 npm run format           # prettier --write .
 npm run check:contrast   # verify every theme token pair against WCAG
+npm run check:a11y       # axe (WCAG 2.1 A and AA) over every page, light and dark
 npm run shoot            # Playwright CLI screenshot sweep, fails on console errors
 npm run db:up            # start Postgres via Docker Compose
 npm run db:down          # stop it
@@ -68,7 +69,7 @@ npm run db:seed          # deterministic 12 months of demo data
 npm run db:verify        # 122 integrity checks, report reconciliation included
 npm run db:segments      # recompute customer segments (the nightly job)
 npm run db:reset         # drop, re-migrate, re-seed
-npm run db:images        # fetch placeholder product images
+npm run db:images        # draw the product illustrations into public/products
 npm test                 # Vitest: unit project, then the db project (needs Postgres)
 npm run test:db          # stock ledger and concurrency tests only
 npm run verify:rbac      # drives a browser through all four roles
@@ -103,7 +104,7 @@ src/
   lib/                # db, auth, env, money, vat, rbac, format, errors
 prisma/               # schema, migrations, seed
 docs/                 # plan, design direction, permissions, screenshots
-scripts/              # shoot.mjs, check-contrast.mjs
+scripts/              # pages.mjs (manifest), shoot.mjs, check-a11y.mjs, check-contrast.mjs
 e2e/                  # Playwright specs
 ```
 
@@ -127,7 +128,11 @@ Never claim a UI task is done from reading code. Run `npm run dev`, then
 `npm run shoot`, then _look at the images_ in `docs/screenshots/` and compare
 them against `DESIGN.md`. Fix overflow, misalignment, bad contrast, broken empty
 states and missing loading states, then recapture. Add every new page to the
-manifest in `scripts/shoot.mjs`.
+manifest in `scripts/pages.mjs`; `shoot` photographs it and `check:a11y`
+audits it. An overlay (a dialog, the palette, the tray) gets `steps` that open
+it and `fullPage: false`. A page that needs a record in some state (a pending
+order, an open return) gets a `find` query instead of a fixed id: the seed is
+dated relative to the day it runs, so a fixed recent id drifts into a 404.
 
 Other standing rules:
 
@@ -141,6 +146,24 @@ Other standing rules:
 - Define colours as tokens in `globals.css`. Never hard-code a hex in a
   component. Run `npm run check:contrast` after any token change.
 - Load the `dataviz` skill before writing any chart code.
+- **Every route has a `loading.tsx` shaped like its page** (`PageLoading`
+  variants: list, record, form, board, feed; `ReportLoading` for reports).
+  A nested route inherits its parent's, so a detail page under a list needs
+  its own or it flashes a table skeleton.
+- **Errors render through `StatusScreen`**: `(app)/error.tsx` inside the shell,
+  `(app)/not-found.tsx` for a record that is gone, and root `error.tsx` and
+  `global-error.tsx` outside it. Never show `error.message`; show the digest.
+- **Destructive actions go through `ConfirmDialog`**, which keeps a server
+  refusal inside the dialog. Outcomes that happen away from the control (a row
+  that disappears, a background refresh) are a toast; errors that belong to a
+  form stay inline in the form.
+- **Record grids start from `grid-cols-1`.** A bare `grid` has an `auto`
+  column that grows to a table's min-content and defeats `overflow-x-auto`.
+- **A draggable must not wrap a link.** Put dnd-kit's `attributes` and
+  keyboard listener on a grip button (`setActivatorNodeRef`) and only the
+  pointer listener on the item, as the lead board does.
+- Recharts charts sit in an `aria-hidden` figure with a caption, so they take
+  `accessibilityLayer={false}`; otherwise the hidden SVG is still focusable.
 
 ## Authorization
 
@@ -328,6 +351,29 @@ concurrency guarantees intact:
 - **`npm run shoot` takes `as` per page** to capture a role other than Admin;
   the dashboard is captured for all four.
 
+## Notifications and the command palette
+
+- **A notification is one row per recipient** (D-49), so reading one is
+  personal. Write them only through `notify(tx, ...)`
+  (`notifications/services/notify.ts`) inside the transaction that did the
+  thing; never `tx.notification.create`.
+- **Audiences are permissions, not roles**: `AUDIENCE` in
+  `notification-rules.ts` maps each type to the permission whose holders
+  should hear about it, and `rolesWith` reads the matrix. Name extra people
+  with `userIds` and leave the actor out with `excludeUserId`.
+- **Overdue tasks are swept on read** (D-50): `raiseOverdueTasks` runs when the
+  bell or the centre reads, and the `(userId, dedupeKey)` unique index makes it
+  idempotent. The seed uses the same key.
+- **The bell polls with TanStack Query** (`useNotifications`), seeded from the
+  layout's server read. Anything that changes read state invalidates
+  `NOTIFICATIONS_KEY`.
+- **The palette's pages and actions come from `paletteEntriesFor(role)`** in
+  `lib/navigation.ts`, filtered by each item's permission and the route gate.
+  Add a create verb to `quickActions`, not to the palette component. Records
+  are searched on the server by `paletteSearch`, one group per permission.
+- `j` and `k` walk the rows of any `DataTable` with an `href`; `/` focuses the
+  list's search; Ctrl or Cmd+K opens the palette from anywhere.
+
 ## Known issues
 
 - `npm audit` reports a postcss advisory reachable only through Next 15's own
@@ -351,6 +397,8 @@ concurrency guarantees intact:
   traffic, so this is the dev compiler, not a leak). For a full sweep, run
   against `npm run build && npm start`, or start dev with
   `NODE_OPTIONS=--max-old-space-size=8192` and sweep in parts.
+- `public/products/*.jpg` are the old picsum photos, superseded by the drawn
+  `.svg` illustrations (D-13). Nothing references them; they can be deleted.
 - `AUTH_URL` must match the origin the dev server is on. Auth.js rebuilds the
   request URL from it, so running on :3100 with `AUTH_URL` still at :3000
   sends the middleware's 403 rewrite to whatever else is on :3000.

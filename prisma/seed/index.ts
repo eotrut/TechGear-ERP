@@ -12,6 +12,12 @@ import {
   REALISED_ORDER_STATUSES,
   vipThreshold,
 } from "../../src/features/customers/services/segment-rules";
+import {
+  AUDIENCE,
+  overdueTaskKey,
+} from "../../src/features/notifications/services/notification-rules";
+import { formatDateTime } from "../../src/lib/format";
+import { rolesWith } from "../../src/lib/rbac/can";
 import { buildAftersales } from "./aftersales";
 import { buildCatalogue, DEMO_PASSWORD } from "./catalogue";
 import { buildCrm } from "./crm";
@@ -22,7 +28,15 @@ import { buildSales } from "./sales";
 import { buildStockCorrections } from "./stock";
 import { emptyTables, type SeedContext } from "./lib/context";
 import { SeedLedger } from "./lib/ledger";
-import { addDays, atBusinessHour, chance, intBetween, pick, resetFaker } from "./lib/helpers";
+import {
+  addDays,
+  atBusinessHour,
+  chance,
+  clampToNow,
+  intBetween,
+  pick,
+  resetFaker,
+} from "./lib/helpers";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -194,27 +208,38 @@ function buildOperationalRecords(ctx: SeedContext): void {
   const main = warehouses[0];
   if (!main) return;
 
+  // One row per recipient, addressed by the same rules the services use, so a
+  // seeded bell looks exactly like a live one.
+  const staff = [ctx.users.admin, ctx.users.manager, ctx.users.sales, ctx.users.warehouse];
   let notificationCounter = 0;
   const notify = (
     type: NotificationType,
     title: string,
     body: string,
     link: string,
-    targetRole: Role | null,
     createdAt: Date,
+    extra: { userIds?: (string | null | undefined)[]; dedupeKey?: string } = {},
   ): void => {
-    notificationCounter += 1;
-    tables.notifications.push({
-      id: `ntf_${String(notificationCounter).padStart(6, "0")}`,
-      userId: null,
-      targetRole,
-      type,
-      title,
-      body,
-      link,
-      readAt: chance(0.35) ? addDays(createdAt, 1) : null,
-      createdAt,
-    });
+    const permission = AUDIENCE[type];
+    const roles = permission ? rolesWith(permission) : [];
+    const named = new Set(extra.userIds?.filter(Boolean));
+    for (const user of staff) {
+      const viaRole = roles.includes(user.role as Role);
+      if (!viaRole && !named.has(user.id)) continue;
+      notificationCounter += 1;
+      tables.notifications.push({
+        id: `ntf_${String(notificationCounter).padStart(6, "0")}`,
+        userId: user.id,
+        targetRole: viaRole ? (user.role as Role) : null,
+        type,
+        title,
+        body,
+        link,
+        dedupeKey: extra.dedupeKey ?? null,
+        readAt: chance(0.35) ? clampToNow(addDays(createdAt, 1), ctx.now) : null,
+        createdAt,
+      });
+    }
   };
 
   const variantById = new Map(ctx.variants.map((v) => [v.id, v]));
@@ -234,9 +259,10 @@ function buildOperationalRecords(ctx: SeedContext): void {
     notify(
       row.onHand === 0 ? "OUT_OF_STOCK" : "LOW_STOCK",
       row.onHand === 0 ? `Out of stock: ${row.variant.sku}` : `Low stock: ${row.variant.sku}`,
-      `${row.variant.name} is at ${row.onHand} units in ${main.code}, reorder level ${row.variant.reorderLevel}.`,
+      row.onHand === 0
+        ? `${row.variant.sku} has nothing left to sell in ${main.code}.`
+        : `${row.variant.sku} is down to ${row.onHand} available in ${main.code}, reorder point ${row.variant.reorderLevel}.`,
       `/inventory/alerts?warehouseId=${main.id}`,
-      "WAREHOUSE",
       addDays(ctx.now, -intBetween(0, 4)),
     );
   }
@@ -247,32 +273,40 @@ function buildOperationalRecords(ctx: SeedContext): void {
       `New ticket: ${ticket.ticketNumber}`,
       String(ticket.subject),
       `/tickets/${ticket.id}`,
-      "MANAGER",
       ticket.createdAt as Date,
+      { userIds: [ticket.assigneeId] },
     );
   }
 
+  const poNumberById = new Map(tables.purchaseOrders.map((po) => [po.id, po.poNumber]));
   for (const receipt of tables.purchaseReceipts.slice(-3)) {
+    const lines = tables.purchaseReceiptItems.filter((item) => item.receiptId === receipt.id);
+    const accepted = lines.reduce((sum, item) => sum + item.qtyReceived, 0);
+    const rejected = lines.reduce((sum, item) => sum + (item.qtyRejected ?? 0), 0);
+    const poNumber = poNumberById.get(receipt.purchaseOrderId) ?? "its purchase order";
     notify(
       "PO_RECEIVED",
       `Stock received: ${receipt.reference}`,
-      "Goods received and added to inventory.",
+      rejected > 0
+        ? `${accepted} units in against ${poNumber}, ${rejected} rejected at the dock.`
+        : `${accepted} units in against ${poNumber}.`,
       `/purchasing/${receipt.purchaseOrderId}`,
-      "MANAGER",
       receipt.receivedAt as Date,
     );
   }
 
+  // Overdue tasks carry the sweep's dedupe key, so opening the bell after a
+  // seed does not raise the same task a second time.
   for (const activity of tables.activities
-    .filter((a) => a.status === "OPEN" && (a.dueAt as Date) < ctx.now)
-    .slice(0, 4)) {
+    .filter((a) => a.status === "OPEN" && a.dueAt && (a.dueAt as Date) < ctx.now)
+    .slice(0, 6)) {
     notify(
       "OVERDUE_TASK",
-      "Task is overdue",
-      String(activity.subject),
+      `Overdue: ${String(activity.subject)}`,
+      `This was due ${formatDateTime(activity.dueAt as Date)}.`,
       "/activities/mine",
-      null,
       activity.dueAt as Date,
+      { userIds: [activity.ownerId], dedupeKey: overdueTaskKey(String(activity.id)) },
     );
   }
 

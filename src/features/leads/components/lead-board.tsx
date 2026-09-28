@@ -27,7 +27,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { LeadStage } from "@prisma/client";
-import { CalendarClock, ListTodo, Lock } from "lucide-react";
+import { CalendarClock, GripVertical, ListTodo, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 import { formatDate } from "@/lib/format";
@@ -95,10 +95,13 @@ function CardBody({
   card,
   locked,
   dragging = false,
+  handle,
 }: {
   card: LeadCard;
   locked: boolean;
   dragging?: boolean;
+  /** The keyboard's way to pick the card up; the pointer can grab it anywhere. */
+  handle?: React.ReactNode;
 }) {
   const closed = card.stage === "WON" || card.stage === "LOST";
   const overdue =
@@ -115,7 +118,10 @@ function CardBody({
       )}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-[11px] text-ink-subtle">{card.code}</span>
+        <span className="flex items-center gap-1">
+          {handle}
+          <span className="font-mono text-[11px] text-ink-subtle">{card.code}</span>
+        </span>
         <span className="flex items-center gap-1.5">
           {locked ? (
             <Lock className="size-3 text-ink-subtle" aria-label={`Owned by ${card.ownerName}`} />
@@ -192,24 +198,52 @@ function CardBody({
 }
 
 function SortableCard({ card, locked }: { card: LeadCard; locked: boolean }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: card.id,
     disabled: locked,
     data: { stage: card.stage },
   });
 
+  // The pointer can grab the card anywhere, so the pointer listener sits on
+  // the list item. The keyboard picks it up from a grip button beside the
+  // title link, never around it: a link inside a button is two controls in
+  // one, which screen readers cannot operate, and the item has to stay a
+  // list item for the column to stay a list.
   return (
     <li
       ref={setNodeRef}
       data-lead-card={card.code}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn("touch-manipulation rounded-md", isDragging && "opacity-40")}
-      {...attributes}
-      {...listeners}
-      aria-roledescription={locked ? undefined : "draggable lead"}
-      aria-label={`${card.code} ${card.title}, ${STAGE_LABEL[card.stage]}, ${formatPeso(card.valueCentavos)}`}
+      onPointerDown={listeners?.onPointerDown as React.PointerEventHandler | undefined}
     >
-      <CardBody card={card} locked={locked} />
+      <CardBody
+        card={card}
+        locked={locked}
+        handle={
+          locked ? null : (
+            <button
+              type="button"
+              ref={setActivatorNodeRef}
+              {...attributes}
+              onKeyDown={listeners?.onKeyDown as React.KeyboardEventHandler | undefined}
+              aria-roledescription="draggable lead"
+              aria-label={`Move ${card.code} ${card.title}, ${STAGE_LABEL[card.stage]}, ${formatPeso(card.valueCentavos)}`}
+              className="-ml-1 inline-flex size-5 items-center justify-center rounded-xs text-ink-subtle hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-fill"
+            >
+              <GripVertical className="size-3.5" aria-hidden />
+            </button>
+          )
+        }
+      />
     </li>
   );
 }
@@ -537,7 +571,7 @@ export function LeadBoard({
         }}
       >
         <div
-          className="-mx-4 flex scroll-px-4 gap-3 overflow-x-auto px-4 pb-3 max-md:snap-x max-md:snap-mandatory lg:-mx-6 lg:scroll-px-6 lg:px-6"
+          className="relative -mx-4 flex scroll-px-4 gap-3 overflow-x-auto px-4 pb-3 max-md:snap-x max-md:snap-mandatory lg:-mx-6 lg:scroll-px-6 lg:px-6"
           data-board
         >
           {LEAD_STAGES.map((stage) => (

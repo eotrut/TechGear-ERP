@@ -60,7 +60,7 @@ export async function createClaimAction(input: unknown): Promise<ActionResult & 
 
   try {
     const result = await runStockTransaction(db, async (tx) => {
-      const claim = await createClaim(tx, parsed.data);
+      const claim = await createClaim(tx, parsed.data, new Date(), user.id);
       await recordAudit({
         actorId: user.id,
         actorEmail: user.email,

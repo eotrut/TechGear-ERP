@@ -9,6 +9,7 @@ import {
   type RefundResult,
 } from "@/features/orders/services/orders";
 import { refundableBalance, refundForUnits } from "@/features/orders/services/order-rules";
+import { notify } from "@/features/notifications/services/notify";
 import { DomainError, NotFoundError } from "@/lib/errors";
 import { formatDate } from "@/lib/format";
 import { nextReference } from "@/lib/numbering";
@@ -62,6 +63,8 @@ export async function createClaim(
   tx: Tx,
   input: { orderItemId: string; issueDescription: string; serialNumber: string },
   now: Date = new Date(),
+  /** Who raised it, so they are not told about their own claim. */
+  actorId: string | null = null,
 ): Promise<{ id: string; claimNumber: string; warrantyExpiresAt: Date }> {
   const claimNumber = await nextReference(tx, "WC", now);
 
@@ -133,15 +136,12 @@ export async function createClaim(
     select: { id: true },
   });
 
-  await tx.notification.create({
-    data: {
-      targetRole: "MANAGER",
-      type: "WARRANTY_CLAIM",
-      title: `Warranty claim ${claimNumber}`,
-      body: `${item.skuSnapshot} on ${order.orderNumber} needs review.`,
-      link: `/warranty/${claim.id}`,
-    },
-    select: { id: true },
+  await notify(tx, {
+    type: "WARRANTY_CLAIM",
+    title: `Warranty claim ${claimNumber}`,
+    body: `${item.skuSnapshot} on ${order.orderNumber} needs review.`,
+    link: `/warranty/${claim.id}`,
+    excludeUserId: actorId,
   });
 
   return { id: claim.id, claimNumber, warrantyExpiresAt };

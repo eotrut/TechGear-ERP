@@ -131,7 +131,7 @@ export function LeadFormDialog({
         <form
           id="lead-form"
           onSubmit={handleSubmit(onSubmit)}
-          className="grid gap-3 sm:grid-cols-2"
+          className="grid grid-cols-1 gap-3 sm:grid-cols-2"
           noValidate
         >
           <Field
@@ -433,7 +433,7 @@ export function ConvertLeadDialog({
             />
           </Field>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div role="radiogroup" aria-label="Customer type" className="flex gap-2 sm:col-span-2">
               {(
                 [

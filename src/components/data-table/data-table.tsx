@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   flexRender,
@@ -33,6 +33,11 @@ import { cn } from "@/lib/utils";
  *
  * Column widths are left to the browser. Fixed widths on a data table are a
  * promise you cannot keep once a real product name arrives.
+ *
+ * Keyboard first (design-direction 6): when rows open a record, `j` and `k`
+ * walk the rows and Enter opens the focused one. Rows take focus with
+ * tabIndex -1, so they are reachable by those keys without adding twenty-five
+ * stops to the Tab order; the links inside them stay tabbable as before.
  */
 
 export type ColumnMeta = {
@@ -102,6 +107,39 @@ export function DataTable<T>({
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
   const storageKey = `techgear.table.${tableId}.columns`;
+  const bodyRef = useRef<HTMLTableSectionElement>(null);
+
+  useEffect(() => {
+    if (!href) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "j" && event.key !== "k") return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const active = document.activeElement;
+      if (
+        active instanceof HTMLInputElement ||
+        active instanceof HTMLTextAreaElement ||
+        active instanceof HTMLSelectElement ||
+        (active instanceof HTMLElement && active.isContentEditable) ||
+        document.querySelector("[role=dialog]")
+      ) {
+        return;
+      }
+      const rows = Array.from(bodyRef.current?.querySelectorAll<HTMLElement>("tr") ?? []);
+      if (rows.length === 0) return;
+      const current = rows.findIndex((row) => row === active || row.contains(active));
+      const next =
+        event.key === "j"
+          ? Math.min(rows.length - 1, current + 1)
+          : current === -1
+            ? 0
+            : Math.max(0, current - 1);
+      event.preventDefault();
+      rows[next]?.focus();
+      rows[next]?.scrollIntoView({ block: "nearest" });
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [href]);
 
   // Column choices are a per-person convenience, so they live in the browser
   // rather than the URL or the database. Storage can throw in private windows.
@@ -253,13 +291,23 @@ export function DataTable<T>({
                 ))}
               </thead>
 
-              <tbody>
+              <tbody ref={bodyRef}>
                 {table.getRowModel().rows.map((row) => {
                   const target = href?.(row.original);
 
                   return (
                     <tr
                       key={row.id}
+                      tabIndex={target ? -1 : undefined}
+                      onKeyDown={
+                        target
+                          ? (event) => {
+                              if (event.key === "Enter" && event.target === event.currentTarget) {
+                                router.push(target);
+                              }
+                            }
+                          : undefined
+                      }
                       data-selected={row.getIsSelected() ? "true" : undefined}
                       onClick={
                         target
@@ -275,7 +323,8 @@ export function DataTable<T>({
                       className={cn(
                         "border-b border-hairline last:border-b-0",
                         "transition-colors hover:bg-surface-2",
-                        target && "cursor-pointer",
+                        target &&
+                          "cursor-pointer outline-none focus-visible:bg-surface-2 focus-visible:shadow-[inset_2px_0_0_0_var(--accent-fill)]",
                         // The selected-row indicator is one of the few places
                         // the accent is allowed to appear.
                         row.getIsSelected() &&
@@ -309,6 +358,21 @@ export function DataTable<T>({
               <span data-numeric>{from}</span> to <span data-numeric>{from + data.length - 1}</span>{" "}
               of <span data-numeric>{total.toLocaleString("en-PH")}</span>{" "}
               {total === 1 ? noun[0] : noun[1]}
+              {href ? (
+                <span className="ml-3 hidden text-caption lg:inline" aria-hidden>
+                  <kbd className="rounded-xs border border-hairline bg-surface-2 px-1 font-mono text-[10px]">
+                    j
+                  </kbd>{" "}
+                  <kbd className="rounded-xs border border-hairline bg-surface-2 px-1 font-mono text-[10px]">
+                    k
+                  </kbd>{" "}
+                  to move,{" "}
+                  <kbd className="rounded-xs border border-hairline bg-surface-2 px-1 font-mono text-[10px]">
+                    Enter
+                  </kbd>{" "}
+                  to open
+                </span>
+              ) : null}
             </p>
 
             <div className="flex items-center gap-2">

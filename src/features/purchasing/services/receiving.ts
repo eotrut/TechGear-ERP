@@ -1,6 +1,7 @@
 import type { Prisma, PurchaseOrderStatus } from "@prisma/client";
 
 import { applyMovement, lockVariants } from "@/features/inventory/services/stock";
+import { notify } from "@/features/notifications/services/notify";
 import { refreshSupplierPerformance } from "@/features/suppliers/services/performance";
 import { DomainError, NotFoundError } from "@/lib/errors";
 import { parsePesoInput } from "@/lib/money";
@@ -219,17 +220,15 @@ export async function receivePurchaseOrder(
   }
 
   // 6. Tell the people who pay for it, and keep the supplier's scorecard current.
-  await tx.notification.create({
-    data: {
-      targetRole: "MANAGER",
-      type: "PO_RECEIVED",
-      title: `Stock received: ${reference}`,
-      body:
-        plan.rejectedUnits > 0
-          ? `${plan.acceptedUnits} units in against ${po.poNumber}, ${plan.rejectedUnits} rejected at the dock.`
-          : `${plan.acceptedUnits} units in against ${po.poNumber} at ${warehouse.code}.`,
-      link: `/purchasing/${po.id}`,
-    },
+  await notify(tx, {
+    type: "PO_RECEIVED",
+    title: `Stock received: ${reference}`,
+    body:
+      plan.rejectedUnits > 0
+        ? `${plan.acceptedUnits} units in against ${po.poNumber}, ${plan.rejectedUnits} rejected at the dock.`
+        : `${plan.acceptedUnits} units in against ${po.poNumber} at ${warehouse.code}.`,
+    link: `/purchasing/${po.id}`,
+    excludeUserId: actor.id,
   });
   await refreshSupplierPerformance(tx, po.supplierId);
 

@@ -226,8 +226,10 @@ async function main() {
   );
   check(
     `Another salesperson's lead (${foreign.code}) is locked for Sales`,
+    // A locked card offers no move handle: the keyboard cannot pick it up and
+    // the pointer sensor is disabled for it.
     evaluate(
-      `() => document.querySelector('[data-lead-card="${foreign.code}"]').getAttribute("aria-disabled")`,
+      `() => String(document.querySelector('[data-lead-card="${foreign.code}"] [aria-roledescription="draggable lead"]') === null)`,
     ) === "true",
   );
 

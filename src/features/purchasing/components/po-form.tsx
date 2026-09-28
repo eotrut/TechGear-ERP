@@ -303,7 +303,7 @@ export function PoForm({
         ) : null}
 
         {lines.fields.length > 0 ? (
-          <div className="overflow-x-auto rounded-md border border-hairline bg-canvas">
+          <div className="relative overflow-x-auto rounded-md border border-hairline bg-canvas">
             <table className="w-full text-body-sm">
               <thead>
                 <tr className="border-b border-hairline bg-surface-1">
@@ -431,7 +431,7 @@ export function PoForm({
         ) : null}
       </section>
 
-      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_320px]">
         <Field id="notes" label="Notes for the supplier" error={errors.notes?.message}>
           <Textarea
             id="notes"

@@ -105,7 +105,7 @@ export default async function AdjustmentDetailPage({ params }: { params: Params 
 
       <section>
         <h2 className="mb-2 text-section text-ink">Lines</h2>
-        <div className="overflow-x-auto rounded-lg border border-hairline">
+        <div className="relative overflow-x-auto rounded-lg border border-hairline">
           <table className="w-full text-body-sm">
             <thead>
               <tr className="border-b border-hairline bg-surface-1">

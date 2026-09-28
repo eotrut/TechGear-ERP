@@ -81,7 +81,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Sea
         <ComparisonNote text={`${describeWindow(range)}. Manila calendar days.`} />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <KpiGrid
           columns={3}
           items={[

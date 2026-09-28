@@ -44,7 +44,7 @@ function WarehouseFields({ draft, onChange }: { draft: Draft; onChange: (next: D
   const id = draft.id ?? "new";
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={`wh-code-${id}`}>Code</Label>
         <Input
@@ -182,7 +182,7 @@ export function WarehouseManager({
         )
       ) : null}
 
-      <div className="overflow-x-auto rounded-lg border border-hairline">
+      <div className="relative overflow-x-auto rounded-lg border border-hairline">
         <table className="w-full text-body-sm">
           <thead>
             <tr className="border-b border-hairline bg-surface-1">

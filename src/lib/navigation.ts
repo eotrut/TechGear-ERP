@@ -2,6 +2,7 @@ import type { Role } from "@prisma/client";
 import {
   ArrowLeftRight,
   Banknote,
+  Bell,
   BellRing,
   Boxes,
   ChartColumn,
@@ -24,6 +25,7 @@ import {
   Tags,
   Ticket,
   Truck,
+  UserCog,
   Users,
   Wallet,
   Warehouse,
@@ -45,6 +47,8 @@ export type NavItem = {
    * route is gated by middleware and the page re-checks server-side.
    */
   permission: Permission;
+  /** Extra words the command palette matches on, such as "register" for POS. */
+  keywords?: string[];
   /**
    * Whether the page behind this item exists yet. Unbuilt modules stay out of
    * the sidebar so no navigation item leads to a 404. The route rules in
@@ -154,7 +158,14 @@ export const navigation: NavGroup[] = [
         icon: ShoppingCart,
         permission: "orders.view",
       },
-      { label: "Point of sale", href: "/pos", icon: Receipt, crumb: "POS", permission: "pos.use" },
+      {
+        label: "Point of sale",
+        href: "/pos",
+        built: true,
+        icon: Receipt,
+        crumb: "POS",
+        permission: "pos.use",
+      },
       {
         label: "Returns",
         href: "/returns",
@@ -275,6 +286,128 @@ export const navigation: NavGroup[] = [
 ];
 
 const allItems: NavItem[] = navigation.flatMap((group) => group.items);
+
+/**
+ * Pages that are not in the sidebar but are worth jumping to from the command
+ * palette. The bell and the account menu are their usual way in.
+ */
+export const secondaryPages: NavItem[] = [
+  {
+    label: "Notifications",
+    href: "/notifications",
+    built: true,
+    icon: Bell,
+    permission: "notifications.viewOwn",
+    keywords: ["alerts", "inbox", "bell"],
+  },
+  {
+    label: "Your account",
+    href: "/account",
+    built: true,
+    icon: UserCog,
+    permission: "account.manageOwn",
+    keywords: ["password", "profile"],
+  },
+];
+
+/**
+ * The palette's "create" verbs. Each names the permission its form checks, so
+ * the palette offers exactly what the role could reach by clicking.
+ */
+export const quickActions: NavItem[] = [
+  {
+    label: "New order",
+    href: "/orders/new",
+    icon: ShoppingCart,
+    permission: "orders.create",
+    keywords: ["sale", "create order"],
+  },
+  {
+    label: "Open the register",
+    href: "/pos",
+    icon: Receipt,
+    permission: "pos.use",
+    keywords: ["pos", "point of sale", "ring up"],
+  },
+  {
+    label: "New product",
+    href: "/products/new",
+    icon: Package,
+    permission: "products.create",
+    keywords: ["create product", "catalogue"],
+  },
+  {
+    label: "New customer",
+    href: "/customers/new",
+    icon: Users,
+    permission: "customers.manage",
+    keywords: ["create customer", "account"],
+  },
+  {
+    label: "New ticket",
+    href: "/tickets/new",
+    icon: LifeBuoy,
+    permission: "tickets.comment",
+    keywords: ["support", "complaint"],
+  },
+  {
+    label: "New purchase order",
+    href: "/purchasing/new",
+    icon: ClipboardList,
+    permission: "purchasing.manage",
+    keywords: ["po", "reorder", "buy"],
+  },
+  {
+    label: "Adjust stock",
+    href: "/inventory/adjustments/new",
+    icon: ClipboardPen,
+    permission: "inventory.adjust",
+    keywords: ["adjustment", "count", "write off"],
+  },
+  {
+    label: "Transfer stock",
+    href: "/inventory/transfers/new",
+    icon: ArrowLeftRight,
+    permission: "inventory.transfer",
+    keywords: ["move", "warehouse"],
+  },
+  {
+    label: "Start a return",
+    href: "/returns/new",
+    icon: RotateCcw,
+    permission: "returns.create",
+    keywords: ["rma", "refund"],
+  },
+  {
+    label: "Record an expense",
+    href: "/expenses/new",
+    icon: Wallet,
+    permission: "expenses.manage",
+    keywords: ["rent", "bill", "cost"],
+  },
+];
+
+/** The item's own permission and the route gate in front of it must both allow it. */
+function canReach(role: Role | null | undefined, item: NavItem): boolean {
+  const gate = permissionForRoute(item.href);
+  return can(role, item.permission) && (!gate || can(role, gate));
+}
+
+/** Palette entries the role can reach, with the sidebar's pages first. */
+export function paletteEntriesFor(role: Role | null | undefined): {
+  pages: (NavItem & { group: string | null })[];
+  actions: NavItem[];
+} {
+  const pages = [
+    ...navigationFor(role).flatMap((group) =>
+      group.items.map((item) => ({ ...item, group: group.label })),
+    ),
+    ...secondaryPages
+      .filter((item) => canReach(role, item))
+      .map((item) => ({ ...item, group: null })),
+  ];
+  return { pages, actions: quickActions.filter((item) => canReach(role, item)) };
+}
 
 /**
  * The navigation a role can actually reach. Groups left with no visible items

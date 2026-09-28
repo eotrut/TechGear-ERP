@@ -108,7 +108,7 @@ function VariantCard({
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="flex flex-col gap-1.5 lg:col-span-2">
           <Label htmlFor={`variant-${index}-option`}>Option name</Label>
           <Input
@@ -350,7 +350,7 @@ export function ProductForm({
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
       <Section title="Basics" description="How the product is named, filed and found.">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="flex flex-col gap-1.5 lg:col-span-2">
             <Label htmlFor="name">Name</Label>
             <Input
@@ -505,7 +505,7 @@ export function ProductForm({
         {images.fields.length === 0 ? (
           <p className="text-body-sm text-ink-subtle">
             No images yet. Product photos live in the public folder, so a path such as
-            <span className="font-mono"> /products/aureus-k87-tenkeyless-1.jpg</span> is all this
+            <span className="font-mono"> /products/aureus-k87-tenkeyless-1.svg</span> is all this
             needs.
           </p>
         ) : (
@@ -516,7 +516,7 @@ export function ProductForm({
                   <Input
                     aria-label={`Image ${index + 1} path`}
                     className="h-8 font-mono text-body-sm"
-                    placeholder="/products/name-1.jpg"
+                    placeholder="/products/name-1.svg"
                     {...register(`images.${index}.url`)}
                   />
                   <FieldError message={errors.images?.[index]?.url?.message} />

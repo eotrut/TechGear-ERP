@@ -234,7 +234,7 @@ export function ReportTable<T>({
   footerLabel?: string;
 }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-hairline">
+    <div className="relative overflow-x-auto rounded-lg border border-hairline">
       <table className="w-full text-body-sm">
         <caption className="sr-only">{caption}</caption>
         <thead>

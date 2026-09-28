@@ -4,7 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
+import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +23,7 @@ const blank: Draft = { name: "", website: "" };
 
 function BrandFields({ draft, onChange }: { draft: Draft; onChange: (next: Draft) => void }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={`brand-name-${draft.id ?? "new"}`}>Name</Label>
         <Input
@@ -77,17 +79,10 @@ export function BrandManager({
     setIsPending(false);
   }
 
-  async function remove(id: string) {
-    setMessage(null);
-    setIsPending(true);
-    const result = await deleteTaxonomyAction({ id, kind: "brand" });
-    setMessage(
-      result.ok
-        ? { ok: true, text: result.message ?? "Deleted." }
-        : { ok: false, text: result.error },
-    );
-    if (result.ok) router.refresh();
-    setIsPending(false);
+  // Deleting goes through a confirmation: the row is gone the moment it
+  // succeeds, so the outcome is a toast rather than a line above the table.
+  function remove(id: string) {
+    return deleteTaxonomyAction({ id, kind: "brand" });
   }
 
   return (
@@ -132,7 +127,7 @@ export function BrandManager({
         )
       ) : null}
 
-      <div className="overflow-x-auto rounded-lg border border-hairline">
+      <div className="relative overflow-x-auto rounded-lg border border-hairline">
         <table className="w-full text-body-sm">
           <thead>
             <tr className="border-b border-hairline bg-surface-1">
@@ -223,18 +218,30 @@ export function BrandManager({
                       </Button>
                     ) : null}
                     {canDelete ? (
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Delete ${brand.name}`}
-                        disabled={isPending || brand._count.products > 0}
-                        title={
-                          brand._count.products > 0 ? "Reassign its products first." : undefined
+                      <ConfirmDialog
+                        trigger={
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Delete ${brand.name}`}
+                            disabled={isPending || brand._count.products > 0}
+                            title={
+                              brand._count.products > 0 ? "Reassign its products first." : undefined
+                            }
+                          >
+                            <Trash2 aria-hidden />
+                          </Button>
                         }
-                        onClick={() => remove(brand.id)}
-                      >
-                        <Trash2 aria-hidden />
-                      </Button>
+                        title={`Delete ${brand.name}?`}
+                        description="It has no products, so nothing else changes. The audit log keeps a record of the deletion."
+                        confirmLabel="Delete brand"
+                        pendingLabel="Deleting"
+                        onConfirm={() => remove(brand.id)}
+                        onDone={(message) => {
+                          toast.success(message ?? "Deleted.");
+                          router.refresh();
+                        }}
+                      />
                     ) : null}
                   </td>
                 </tr>

@@ -177,11 +177,11 @@ export default async function PurchaseOrderPage({ params }: { params: Params }) 
         </span>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
         <div className="flex min-w-0 flex-col gap-6">
           <section>
             <h2 className="mb-2 text-section text-ink">Lines</h2>
-            <div className="overflow-x-auto rounded-lg border border-hairline">
+            <div className="relative overflow-x-auto rounded-lg border border-hairline">
               <table className="w-full text-body-sm">
                 <thead>
                   <tr className="border-b border-hairline bg-surface-1">
@@ -307,7 +307,7 @@ export default async function PurchaseOrderPage({ params }: { params: Params }) 
                         by {receipt.receivedBy}
                       </span>
                     </div>
-                    <div className="overflow-x-auto">
+                    <div className="relative overflow-x-auto">
                       <table className="w-full text-body-sm">
                         <thead>
                           <tr className="border-b border-hairline">
@@ -381,7 +381,7 @@ export default async function PurchaseOrderPage({ params }: { params: Params }) 
                   of goods and freight is unbilled.
                 </p>
               ) : (
-                <div className="overflow-x-auto rounded-lg border border-hairline">
+                <div className="relative overflow-x-auto rounded-lg border border-hairline">
                   <table className="w-full text-body-sm">
                     <thead>
                       <tr className="border-b border-hairline bg-surface-1">

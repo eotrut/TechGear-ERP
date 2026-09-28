@@ -2,9 +2,12 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { useRouter } from "next/navigation";
 import { KeyRound, UserPlus } from "lucide-react";
+import { toast } from "sonner";
 
 import type { ActionResult } from "@/features/auth/actions";
+import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,7 +57,7 @@ function CreateUserPanel() {
   return (
     <form action={action} className="w-full rounded-lg border border-hairline bg-surface-1 p-4">
       <h2 className="mb-3 text-section text-ink">New user</h2>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="new-name">Name</Label>
           <Input id="new-name" name="name" required minLength={2} />
@@ -120,6 +123,7 @@ function UserRow({ user, currentUserId }: { user: UserListItem; currentUserId: s
     null,
   );
   const [resetOpen, setResetOpen] = useState(false);
+  const router = useRouter();
 
   const isSelf = user.id === currentUserId;
   const result = updateState ?? activeState ?? resetState;
@@ -170,20 +174,45 @@ function UserRow({ user, currentUserId }: { user: UserListItem; currentUserId: s
 
       <td className="px-3 py-2.5 align-top">
         <div className="flex flex-wrap items-start justify-end gap-2">
-          <form action={activeFormAction}>
-            <input type="hidden" name="userId" value={user.id} />
-            <input type="hidden" name="isActive" value={user.isActive ? "false" : "true"} />
-            <Button
-              type="submit"
-              variant={user.isActive ? "secondary" : "primary"}
-              size="sm"
-              // The server refuses this too; the disabled state is only a hint.
-              disabled={isSelf && user.isActive}
-              title={isSelf && user.isActive ? "You cannot deactivate your own account" : undefined}
-            >
-              <Pending idle={user.isActive ? "Deactivate" : "Reactivate"} busy="Working" />
-            </Button>
-          </form>
+          {user.isActive ? (
+            // Deactivating locks somebody out on their next click (D-12), so it
+            // is confirmed. Reactivating gives access back and is not.
+            <ConfirmDialog
+              trigger={
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  // The server refuses this too; the disabled state is only a hint.
+                  disabled={isSelf}
+                  title={isSelf ? "You cannot deactivate your own account" : undefined}
+                >
+                  Deactivate
+                </Button>
+              }
+              title={`Deactivate ${user.name}?`}
+              description="They are signed out on their next action and cannot sign in again until reactivated. Everything they recorded stays, credited to them."
+              confirmLabel="Deactivate"
+              pendingLabel="Deactivating"
+              onConfirm={() => {
+                const form = new FormData();
+                form.set("userId", user.id);
+                form.set("isActive", "false");
+                return setUserActiveAction(null, form);
+              }}
+              onDone={(message) => {
+                toast.success(message ?? `${user.name} is deactivated.`);
+                router.refresh();
+              }}
+            />
+          ) : (
+            <form action={activeFormAction}>
+              <input type="hidden" name="userId" value={user.id} />
+              <input type="hidden" name="isActive" value="true" />
+              <Button type="submit" variant="primary" size="sm">
+                <Pending idle="Reactivate" busy="Working" />
+              </Button>
+            </form>
+          )}
 
           {resetOpen ? (
             <form action={resetFormAction} className="flex items-center gap-2">
@@ -227,7 +256,7 @@ export function UserManager({
     <div className="flex flex-col gap-4">
       <CreateUserPanel />
 
-      <div className="overflow-x-auto rounded-lg border border-hairline">
+      <div className="relative overflow-x-auto rounded-lg border border-hairline">
         <table className="w-full min-w-[720px]">
           <thead>
             <tr className="border-b border-hairline bg-surface-1">

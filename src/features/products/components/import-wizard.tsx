@@ -96,6 +96,10 @@ export function ImportWizard() {
             id="csv-file"
             type="file"
             accept=".csv,text/csv"
+            // The Choose CSV button is the visible control; the input keeps a
+            // name for assistive tech but stays out of the Tab order.
+            aria-label="CSV file to import"
+            tabIndex={-1}
             className="sr-only"
             onChange={(event) => {
               const file = event.target.files?.[0];

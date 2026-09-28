@@ -105,7 +105,13 @@ export function TrendChart({
       ) : null}
       <div style={{ height }} aria-hidden>
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
+          {/* The figure's caption is the accessible version, so the SVG is
+              hidden and must not take focus either. */}
+          <ComposedChart
+            data={data}
+            margin={{ top: 6, right: 8, bottom: 0, left: 0 }}
+            accessibilityLayer={false}
+          >
             <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
             <XAxis
               dataKey="label"

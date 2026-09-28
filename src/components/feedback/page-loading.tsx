@@ -5,7 +5,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 /**
  * Route-level loading states. Each keeps the real page title so the heading
  * does not jump when the data lands, and mirrors the shape of what is coming:
- * a list, a record with a side rail, a form, or a board of columns.
+ * a list, a record with a side rail, a form, a board of columns, or a feed of
+ * dated entries.
  */
 export function PageLoading({
   title,
@@ -13,7 +14,7 @@ export function PageLoading({
   columns = 7,
 }: {
   title: string;
-  variant?: "list" | "record" | "form" | "board";
+  variant?: "list" | "record" | "form" | "board" | "feed";
   columns?: number;
 }) {
   if (variant === "list") {
@@ -21,6 +22,40 @@ export function PageLoading({
       <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-5">
         <PageHeader title={title} />
         <TableSkeleton columns={columns} />
+      </div>
+    );
+  }
+
+  if (variant === "feed") {
+    return (
+      <div
+        className="mx-auto flex w-full max-w-[860px] flex-col gap-5"
+        aria-busy="true"
+        aria-live="polite"
+      >
+        <span className="sr-only">Loading</span>
+        <PageHeader title={title} className="pb-0" />
+        <div className="flex gap-4 border-b border-hairline pb-2">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-4 w-16" />
+          ))}
+        </div>
+        {Array.from({ length: 2 }).map((_, day) => (
+          <div key={day} className="flex flex-col gap-2">
+            <Skeleton className="h-3 w-20" />
+            <div className="divide-y divide-hairline rounded-lg border border-hairline">
+              {Array.from({ length: 4 - day }).map((_, row) => (
+                <div key={row} className="flex gap-3 px-3 py-3">
+                  <Skeleton className="size-7" />
+                  <div className="flex flex-1 flex-col gap-1.5">
+                    <Skeleton className="h-3.5 w-2/5" />
+                    <Skeleton className="h-3 w-3/5" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
@@ -73,7 +108,7 @@ export function PageLoading({
               </div>
             ))}
           </div>
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
             <TableSkeleton columns={columns} rows={5} withFilters={false} />
             <div className="flex flex-col gap-3 rounded-lg border border-hairline bg-surface-1 p-4">
               {Array.from({ length: 5 }).map((_, index) => (

@@ -178,7 +178,7 @@ export default async function Customer360Page({ params }: { params: Params }) {
         ]}
       />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex min-w-0 flex-col gap-6">
           <section>
             <div className="mb-2 flex items-baseline justify-between gap-3">

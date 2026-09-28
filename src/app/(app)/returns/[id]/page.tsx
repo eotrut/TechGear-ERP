@@ -137,7 +137,7 @@ export default async function ReturnDetailPage({ params }: { params: Params }) {
         <span className="text-ink">Reason:</span> {record.reason}
       </p>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
         <div className="flex min-w-0 flex-col gap-6">
           <section>
             <h2 className="mb-2 text-section text-ink">Lines</h2>

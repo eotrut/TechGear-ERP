@@ -177,7 +177,7 @@ export function ReturnForm({ order, showMoney }: { order: ReturnableOrder; showM
         </table>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field id="reason" label="Reason" hint="In the customer's words where you can.">
           <Input
             id="reason"

@@ -83,6 +83,7 @@ export function ColumnChart({
       <div style={{ height }} aria-hidden>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
+            accessibilityLayer={false}
             data={data}
             margin={{ top: 6, right: 8, bottom: 0, left: 0 }}
             barGap={2}

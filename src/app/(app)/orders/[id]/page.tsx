@@ -195,7 +195,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
         </p>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="flex min-w-0 flex-col gap-6">
           <section>
             <div className="mb-2 flex items-baseline justify-between gap-3">
@@ -316,7 +316,7 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
           </section>
 
           {viewMoney ? (
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <section>
                 <h2 className="mb-2 text-section text-ink">Payments</h2>
                 {order.payments.length === 0 ? (
@@ -424,8 +424,9 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
         <aside className="flex flex-col gap-5">
           {viewMoney ? (
             <section className="rounded-lg border border-hairline bg-surface-1 px-4 py-3">
-              <dl className="flex flex-col divide-y divide-hairline">
-                <div className="pb-1">
+              {/* Three lists, not one: a <dl> may only group its terms one level deep. */}
+              <div className="flex flex-col divide-y divide-hairline">
+                <dl className="pb-1">
                   <SummaryRow label="Subtotal" value={formatPeso(order.subtotalCentavos)} />
                   {order.discountCentavos > 0 ? (
                     <SummaryRow
@@ -448,8 +449,8 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
                     label="Shipping"
                     value={order.shippingCentavos > 0 ? formatPeso(order.shippingCentavos) : "Free"}
                   />
-                </div>
-                <div>
+                </dl>
+                <dl>
                   <SummaryRow label="Total" value={formatPeso(order.totalCentavos)} strong />
                   <SummaryRow
                     label="VAT included, 12%"
@@ -461,8 +462,8 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
                     value={formatPeso(order.totalCentavos - order.vatCentavos)}
                     tone="subtle"
                   />
-                </div>
-                <div className="pt-1">
+                </dl>
+                <dl className="pt-1">
                   <SummaryRow label="Paid" value={formatPeso(order.amountPaidCentavos)} />
                   {order.amountRefundedCentavos > 0 ? (
                     <SummaryRow
@@ -483,8 +484,8 @@ export default async function OrderDetailPage({ params }: { params: Params }) {
                       tone="subtle"
                     />
                   ) : null}
-                </div>
-              </dl>
+                </dl>
+              </div>
             </section>
           ) : null}
 

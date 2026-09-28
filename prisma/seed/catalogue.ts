@@ -191,15 +191,15 @@ export async function buildCatalogue(ctx: SeedContext): Promise<void> {
       });
     });
 
-    // Deterministic placeholder images. scripts/fetch-product-images.ts pulls
-    // these down into public/ so the app also works offline (decision D-13).
+    // Product illustrations drawn by scripts/draw-product-images.ts into
+    // public/, in the product's own colourway (decision D-13).
     const imageCount = 2;
     for (let i = 0; i < imageCount; i += 1) {
       tables.productImages.push({
         id: `img_${productId}_${i}`,
         productId,
-        url: `/products/${slugify(product.name)}-${i + 1}.jpg`,
-        alt: `${product.name}, view ${i + 1}`,
+        url: `/products/${slugify(product.name)}-${i + 1}.svg`,
+        alt: i === 0 ? product.name : `${product.name}, close up`,
         sortOrder: i,
         isPrimary: i === 0,
       });

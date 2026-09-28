@@ -141,6 +141,16 @@ describe.skipIf(databaseUrl === "")("purchasing", () => {
       const f = await createFixture(db, { variants: 2 });
       const [kb, mouse] = f.variants as [string, string];
       const supplier = await makeSupplier();
+      // Somebody who pays bills, so the deliveries have an audience.
+      const manager = await db.user.create({
+        data: {
+          email: `mgr-${randomBytes(4).toString("hex")}@test.techgear.ph`,
+          name: "Receiving manager",
+          passwordHash: "not-a-real-hash",
+          role: "MANAGER",
+        },
+        select: { id: true },
+      });
 
       // Existing stock: 40 keyboards at 1,500.00.
       await receive(db, f, kb, f.warehouseA, 40, 150_000);
@@ -209,10 +219,11 @@ describe.skipIf(databaseUrl === "")("purchasing", () => {
       });
       expect(header).toEqual({ status: "RECEIVED", _count: { receipts: 2 } });
 
-      const notifications = await db.notification.count({
-        where: { type: "PO_RECEIVED", link: `/purchasing/${po.id}` },
+      // One announcement per delivery, to each person who pays bills.
+      const deliveries = await db.notification.count({
+        where: { type: "PO_RECEIVED", link: `/purchasing/${po.id}`, userId: manager.id },
       });
-      expect(notifications).toBe(2);
+      expect(deliveries).toBe(2);
 
       await expectLedgerInvariants(db, f.variants);
     });

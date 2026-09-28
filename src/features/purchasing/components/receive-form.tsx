@@ -183,7 +183,7 @@ export function ReceiveForm({
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-md border border-hairline bg-canvas">
+        <div className="relative overflow-x-auto rounded-md border border-hairline bg-canvas">
           <table className="w-full text-body-sm">
             <thead>
               <tr className="border-b border-hairline bg-surface-1">
@@ -295,7 +295,7 @@ export function ReceiveForm({
         </div>
       </section>
 
-      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_300px]">
         <Field
           id="receive-note"
           label={rejected > 0 ? "Note (required, units were rejected)" : "Note (optional)"}

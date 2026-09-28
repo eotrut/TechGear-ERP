@@ -198,7 +198,7 @@ export function BillForm({
         </div>
       </section>
 
-      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex flex-col gap-4">
           <Field
             id="subtotal"
