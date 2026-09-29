@@ -12,11 +12,12 @@ import { STOCK_REASON_LABEL } from "@/features/inventory/schemas";
 import { formatDateTime } from "@/lib/format";
 import { formatAmount, formatPeso } from "@/lib/money";
 import { can } from "@/lib/rbac/can";
-import { requirePermission } from "@/lib/rbac/guard";
+import { currentUserCan, requirePermission } from "@/lib/rbac/guard";
 
 type Params = Promise<{ id: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  if (!(await currentUserCan("inventory.adjust"))) return { title: "Adjustment" };
   const { id } = await params;
   const adjustment = await getAdjustment(id);
   return { title: adjustment?.reference ?? "Adjustment" };

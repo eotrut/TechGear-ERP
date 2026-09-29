@@ -2,7 +2,7 @@ import type { OrderStatus } from "@prisma/client";
 
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 
-import { fulfilmentAxis, paymentAxis } from "../services/order-rules";
+import { fulfilmentAxis } from "../services/order-rules";
 
 /**
  * Order vocabulary. The canonical status is one chip; lists read it on two
@@ -25,16 +25,6 @@ const ORDER_TONE: Record<OrderStatus, StatusTone> = {
 
 export function OrderStatusBadge({ status }: { status: OrderStatus }) {
   return <StatusBadge tone={ORDER_TONE[status]}>{status.toLowerCase()}</StatusBadge>;
-}
-
-export function PaymentBadge(props: {
-  status: OrderStatus;
-  totalCentavos: number;
-  amountPaidCentavos: number;
-  amountRefundedCentavos: number;
-}) {
-  const axis = paymentAxis(props);
-  return <StatusBadge tone={axis.tone}>{axis.label}</StatusBadge>;
 }
 
 export function FulfilmentBadge({ status }: { status: OrderStatus }) {

@@ -17,6 +17,7 @@ import {
 import { assertPromoUsable } from "@/features/promos/services/promo-rules";
 import { DomainError, InvalidTransitionError, NotFoundError } from "@/lib/errors";
 import { nextReference } from "@/lib/numbering";
+import type { Access } from "@/lib/rbac/matrix";
 import { assertTransition, canTransition } from "@/lib/transitions";
 
 import { ORDER_STATUS_LABEL } from "../schemas";
@@ -691,6 +692,19 @@ export type CancelResult = {
  * Once shipped, an order cannot be cancelled; the goods come back through a
  * return instead. The promo use is given back in every case.
  */
+/**
+ * What the caller may cancel, checked again under the order's row lock. The
+ * action authorizes first, but against a read taken before the lock: an order
+ * paid in that gap would otherwise be cancelled, and refunded, by someone who
+ * may only cancel their own unpaid orders.
+ */
+export type CancelGrant = {
+  /** "own": only orders the actor sells or created. */
+  scope: Access;
+  /** Cancelling after payment refunds it, which is its own grant. */
+  canRefund: boolean;
+};
+
 export async function cancelOrder(
   tx: Tx,
   input: {
@@ -700,6 +714,7 @@ export async function cancelOrder(
     refundReference?: string;
   },
   actor: Actor,
+  grant: CancelGrant,
 ): Promise<CancelResult> {
   if (input.refundMethod === "COD") {
     throw new DomainError(
@@ -707,6 +722,11 @@ export async function cancelOrder(
     );
   }
   const order = await lockOrder(tx, input.orderId);
+  if (grant.scope === "own" && (order.salespersonId ?? order.createdById) !== actor.id) {
+    throw new DomainError(
+      `${order.orderNumber} belongs to another salesperson, so only a manager can cancel it.`,
+    );
+  }
   if (!canTransition(ORDER_TRANSITIONS, order.status, "CANCELLED")) {
     throw new InvalidTransitionError(
       "Order",
@@ -715,6 +735,11 @@ export async function cancelOrder(
       hasShipped(order.status)
         ? `${order.orderNumber} has already left the warehouse. Raise a return instead of cancelling.`
         : undefined,
+    );
+  }
+  if (cancelNeedsRefund(order.status) && !grant.canRefund) {
+    throw new DomainError(
+      `${order.orderNumber} has been paid, so cancelling it now refunds the customer. Ask a manager.`,
     );
   }
 

@@ -2,7 +2,7 @@ import type { BillStatus, PaymentTerms } from "@prisma/client";
 
 import { DomainError } from "@/lib/errors";
 import { manilaDayKey } from "@/lib/format";
-import { assertCentavos } from "@/lib/money";
+import { assertCentavos, formatPeso } from "@/lib/money";
 import type { TransitionMap } from "@/lib/transitions";
 import { vatOnNet } from "@/lib/vat";
 
@@ -123,9 +123,7 @@ export function planSupplierPayment(
   const balance = billBalance(bill);
   if (amountCentavos > balance) {
     throw new DomainError(
-      `${bill.billNumber} has ${(balance / 100).toFixed(2)} left to pay, so ${(
-        amountCentavos / 100
-      ).toFixed(2)} would overpay it.`,
+      `${bill.billNumber} has ${formatPeso(balance)} left to pay, so ${formatPeso(amountCentavos)} would overpay it.`,
     );
   }
 

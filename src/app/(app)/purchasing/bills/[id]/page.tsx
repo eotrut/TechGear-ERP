@@ -22,13 +22,14 @@ import { PAYMENT_TERMS_LABELS } from "@/features/suppliers/schemas";
 import { formatDate, formatDateTime, manilaDayKey } from "@/lib/format";
 import { formatAmount, formatPeso } from "@/lib/money";
 import { can } from "@/lib/rbac/can";
-import { requirePermission } from "@/lib/rbac/guard";
+import { currentUserCan, requirePermission } from "@/lib/rbac/guard";
 import { canTransition } from "@/lib/transitions";
 import { cn } from "@/lib/utils";
 
 type Params = Promise<{ id: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  if (!(await currentUserCan("bills.view"))) return { title: "Bill" };
   const { id } = await params;
   const bill = await getBill(id);
   return { title: bill?.billNumber ?? "Bill" };

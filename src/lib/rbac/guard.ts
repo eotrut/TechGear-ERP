@@ -1,5 +1,6 @@
 import type { Role } from "@prisma/client";
 import { forbidden, unauthorized } from "next/navigation";
+import { cache } from "react";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -45,8 +46,12 @@ export class AuthenticationError extends Error {
  *
  * Returns null when there is no session, when the account has been deleted
  * since the token was issued, or when it has been deactivated.
+ *
+ * Memoized for one server render with React's `cache`, so the layout, the
+ * page and its metadata share one read instead of three. Every request, and
+ * every action, still reads the live row.
  */
-export async function getCurrentUser(): Promise<CurrentUser | null> {
+export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) return null;
@@ -59,7 +64,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   if (!user || !user.isActive) return null;
 
   return { id: user.id, email: user.email, name: user.name, role: user.role };
-}
+});
 
 /** The current user, or a 401 page. For pages and server components. */
 export async function requireUser(): Promise<CurrentUser> {
@@ -121,7 +126,12 @@ export async function authorizeRecord(
   return { user, access };
 }
 
-/** Non-throwing check for conditionally rendering UI. */
+/**
+ * Non-throwing check. `generateMetadata` must call it before reading a
+ * record: metadata renders apart from the page and before the page's guard,
+ * so without it a stale session would read the record into the <title> of
+ * a 403.
+ */
 export async function currentUserCan(permission: Permission): Promise<boolean> {
   const user = await getCurrentUser();
   return can(user?.role, permission);

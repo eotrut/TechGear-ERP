@@ -6,14 +6,6 @@ import { pageParam, requiredId, text } from "@/lib/validation";
 
 /** Return (RMA) schemas. */
 
-export const RETURN_STATUSES = [
-  "REQUESTED",
-  "APPROVED",
-  "RECEIVED",
-  "COMPLETED",
-  "REJECTED",
-] as const satisfies readonly ReturnStatus[];
-
 export const RETURN_STATUS_LABEL: Record<ReturnStatus, string> = {
   REQUESTED: "Requested",
   APPROVED: "Approved",

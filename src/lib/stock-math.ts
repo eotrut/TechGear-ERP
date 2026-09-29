@@ -58,11 +58,6 @@ export type StockPosition = {
   reserved: number;
 };
 
-/** Would this draw take a position below zero available? */
-export function canFulfil(position: StockPosition, qty: number): boolean {
-  return availableQty(position.onHand, position.reserved) >= qty;
-}
-
 /**
  * Inventory value at cost. Deliberately recomputed from current positions
  * rather than accumulated, so per-movement rounding residue cannot compound.

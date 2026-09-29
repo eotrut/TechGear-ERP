@@ -1,5 +1,5 @@
 import { parsePesoInput, toPesoInput } from "@/lib/money";
-import { normaliseHeader, parseCsv, toCsv, type CsvColumn, type CsvRow } from "@/lib/csv";
+import { normaliseHeader, parseCsv, type CsvColumn, type CsvRow } from "@/lib/csv";
 
 /**
  * Catalogue CSV, in and out.
@@ -78,10 +78,6 @@ export function exportColumns(includeCost: boolean): CsvColumn<ExportRow>[] {
   );
 
   return columns;
-}
-
-export function productsToCsv(rows: readonly ExportRow[], includeCost: boolean): string {
-  return toCsv(rows, exportColumns(includeCost));
 }
 
 /* -------------------------------------------------------------------------- */

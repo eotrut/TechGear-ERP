@@ -187,6 +187,20 @@ Where the matrix says `own`, `scopeFor` returns `"own"` rather than a boolean,
 so the caller has to acknowledge the scope. Use `authorizeRecord(permission,
 ownerId)` when acting on a single record.
 
+- **A grant that depends on a record's state is re-checked under its lock.**
+  The action's pre-read is advisory: an order can be paid between it and the
+  lock. Pass the grant into the service, as `cancelOrder` takes `CancelGrant`.
+- **`generateMetadata` checks `currentUserCan` before reading a record.** It
+  renders apart from the page and before the page's guard, so an unchecked
+  read puts the record's name in the `<title>` of a 403.
+- **The middleware matcher excludes static files by extension only.** A folder
+  exclusion (it once had `products/`) also drops every page under that path
+  from the route gate. `tests/rbac.test.ts` checks every gated route matches.
+- **Sessions last a fixed eight hours from sign-in.** Middleware drops Auth.js's
+  per-request cookie refresh (`src/lib/session-cookie.ts`). With it, any link
+  prefetch in flight during sign-out re-issued the cookie and undid the
+  sign-out. Do not remove it.
+
 `docs/permissions.md` is generated. Run `npm run gen:permissions` after editing
 the matrix, and `npm test` to check the invariants still hold.
 

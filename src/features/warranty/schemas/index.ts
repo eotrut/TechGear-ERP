@@ -6,16 +6,6 @@ import { pageParam, requiredId, text } from "@/lib/validation";
 
 /** Warranty claim schemas. */
 
-export const CLAIM_STATUSES = [
-  "SUBMITTED",
-  "UNDER_REVIEW",
-  "APPROVED",
-  "REPLACED",
-  "REFUNDED",
-  "REJECTED",
-  "CLOSED",
-] as const satisfies readonly WarrantyClaimStatus[];
-
 export const CLAIM_STATUS_LABEL: Record<WarrantyClaimStatus, string> = {
   SUBMITTED: "Submitted",
   UNDER_REVIEW: "Under review",

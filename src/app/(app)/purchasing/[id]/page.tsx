@@ -24,13 +24,14 @@ import { PAYMENT_TERMS_LABELS } from "@/features/suppliers/schemas";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { formatAmount, formatPeso } from "@/lib/money";
 import { can } from "@/lib/rbac/can";
-import { requirePermission } from "@/lib/rbac/guard";
+import { currentUserCan, requirePermission } from "@/lib/rbac/guard";
 import { canTransition } from "@/lib/transitions";
 import { cn } from "@/lib/utils";
 
 type Params = Promise<{ id: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  if (!(await currentUserCan("purchasing.view"))) return { title: "Purchase order" };
   const { id } = await params;
   const po = await getPurchaseOrder(id, { withBills: false });
   return { title: po?.poNumber ?? "Purchase order" };

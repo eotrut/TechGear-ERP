@@ -12,11 +12,12 @@ import { getClaim, warrantyWarehouses } from "@/features/warranty/queries";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { formatPeso } from "@/lib/money";
 import { can } from "@/lib/rbac/can";
-import { requirePermission } from "@/lib/rbac/guard";
+import { currentUserCan, requirePermission } from "@/lib/rbac/guard";
 
 type Params = Promise<{ id: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  if (!(await currentUserCan("warranty.view"))) return { title: "Warranty claim" };
   const { id } = await params;
   const claim = await getClaim(id, { viewMoney: false });
   return { title: claim?.claimNumber ?? "Warranty claim" };

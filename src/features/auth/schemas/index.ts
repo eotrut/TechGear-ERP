@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { text } from "@/lib/validation";
+
 /** Zod is the single source of truth for these shapes; TS types are inferred. */
 
 export const loginSchema = z.object({
@@ -40,7 +42,7 @@ export const changePasswordSchema = z
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
 export const updateProfileSchema = z.object({
-  name: z.string().min(2, "Enter your name").max(120),
+  name: text(120, { min: 2, required: "Enter your name" }),
   phone: z
     .string()
     .max(40)

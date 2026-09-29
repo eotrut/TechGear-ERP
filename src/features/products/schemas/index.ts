@@ -137,11 +137,6 @@ export const updateProductSchema = productFormSchema.extend({
   productId: z.string().trim().min(1),
 });
 
-export const setProductStatusSchema = z.object({
-  productId: z.string().trim().min(1),
-  status: z.enum(PRODUCT_STATUSES),
-});
-
 export const archiveProductSchema = z.object({
   productId: z.string().trim().min(1),
   /** False restores a previously archived product. */

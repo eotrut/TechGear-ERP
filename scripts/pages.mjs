@@ -26,6 +26,7 @@ export const PAGES = {
   design: { route: "/design", auth: true },
   account: { route: "/account", auth: true },
   audit: { route: "/audit", auth: true },
+  settings: { route: "/settings", auth: true },
   users: { route: "/settings/users", auth: true },
   products: { route: "/products", auth: true },
   // Deterministic seed ids, so the detail captures are the same product every run.

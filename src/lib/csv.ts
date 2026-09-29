@@ -15,12 +15,19 @@ export const CSV_BOM = "﻿";
 /** One row of parsed CSV, keyed by the header names in the first line. */
 export type CsvRow = Record<string, string>;
 
+/** A cell Excel or Sheets would evaluate as a formula. */
+const FORMULA_START = /^[=+\-@\t\r]/;
+/** A plain signed decimal, which no spreadsheet evaluates as anything but a number. */
+const PLAIN_NUMBER = /^-?\d+(\.\d+)?$/;
+
 function encodeCell(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return "";
   const text = String(value);
-  // A leading =, +, - or @ makes Excel treat the cell as a formula. Prefixing
-  // an apostrophe is the standard defence and survives a round trip.
-  const guarded = /^[=+\-@]/.test(text) ? `'${text}` : text;
+  // A leading =, +, -, @, tab or carriage return makes a spreadsheet treat the
+  // cell as a formula. Prefixing an apostrophe is the standard defence and
+  // survives a round trip. A negative amount such as "-1250.00" is exempt:
+  // guarding it would turn every loss or outbound quantity into text.
+  const guarded = FORMULA_START.test(text) && !PLAIN_NUMBER.test(text) ? `'${text}` : text;
   return /["\n\r,]/.test(guarded) ? `"${guarded.replaceAll('"', '""')}"` : guarded;
 }
 

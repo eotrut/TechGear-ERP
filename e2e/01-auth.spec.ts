@@ -69,6 +69,31 @@ test.describe("sign in as each role", () => {
     });
   }
 
+  test("the route gate covers the pages beneath /products", async ({ page }) => {
+    // The middleware matcher once skipped every /products/* route, so these
+    // fell through to the page guard: a bare 403 that names nothing, and a
+    // 401 instead of the sign-in page for someone signed out.
+    await page.context().clearCookies();
+    await page.goto("/products/import");
+    await expect(page).toHaveURL(/\/login\?next=%2Fproducts%2Fimport$/);
+
+    await signIn(page, "sales");
+    await page.goto("/products/new");
+    await expect(page.getByText("You do not have access to this page")).toBeVisible();
+    await expect(page.getByText("Missing: products.create")).toBeVisible();
+  });
+
+  test("sign-in never redirects off the site", async ({ page }) => {
+    await page.context().clearCookies();
+    await page.goto(`/login?next=${encodeURIComponent("/\\evil.example")}`);
+    await page.locator("#email").fill("sales@techgear.ph");
+    await page.locator("#password").fill("techgear123");
+    await page.locator("button[type=submit]").click();
+    await page.waitForURL((url) => !url.pathname.startsWith("/login"));
+    expect(new URL(page.url()).hostname).toBe("localhost");
+    await expect(page).toHaveURL(/\/dashboard$/);
+  });
+
   test("a wrong password is refused without saying which half was wrong", async ({ page }) => {
     await page.goto("/login");
     await page.locator("#email").fill("sales@techgear.ph");

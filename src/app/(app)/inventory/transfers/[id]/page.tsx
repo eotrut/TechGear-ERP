@@ -10,12 +10,13 @@ import { TransferActions } from "@/features/inventory/components/transfer-action
 import { getTransfer } from "@/features/inventory/queries";
 import { formatDateTime } from "@/lib/format";
 import { can } from "@/lib/rbac/can";
-import { requirePermission } from "@/lib/rbac/guard";
+import { currentUserCan, requirePermission } from "@/lib/rbac/guard";
 import { cn } from "@/lib/utils";
 
 type Params = Promise<{ id: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  if (!(await currentUserCan("inventory.transfer"))) return { title: "Transfer" };
   const { id } = await params;
   const transfer = await getTransfer(id);
   return { title: transfer?.reference ?? "Transfer" };

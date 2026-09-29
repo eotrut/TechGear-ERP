@@ -30,14 +30,6 @@ export const PO_STATUS_LABEL: Record<PurchaseOrderStatus, string> = {
   CANCELLED: "cancelled",
 };
 
-export const BILL_STATUSES = [
-  "DRAFT",
-  "OPEN",
-  "PARTIALLY_PAID",
-  "PAID",
-  "VOID",
-] as const satisfies readonly BillStatus[];
-
 export const BILL_STATUS_LABEL: Record<BillStatus, string> = {
   DRAFT: "draft",
   OPEN: "open",

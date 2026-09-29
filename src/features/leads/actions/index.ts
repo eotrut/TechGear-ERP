@@ -175,20 +175,6 @@ export async function markLeadLostAction(input: unknown): Promise<ActionResult> 
   });
 }
 
-export async function reopenLeadAction(input: unknown): Promise<ActionResult> {
-  const parsed = leadIdSchema.safeParse(input);
-  if (!parsed.success) {
-    await authorizeAction("leads.moveStage");
-    return invalid(parsed.error.issues);
-  }
-  return moveLeadAction({
-    leadId: parsed.data.leadId,
-    toStage: "NEW",
-    beforeId: null,
-    afterId: null,
-  });
-}
-
 export async function convertLeadAction(
   input: unknown,
 ): Promise<ActionResult & { customerId?: string }> {

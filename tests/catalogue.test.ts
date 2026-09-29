@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseCsv, parseCsvRows, toCsv, CSV_BOM } from "@/lib/csv";
+import { parseCsv, parseCsvRows, toCsv, toCsvLine, CSV_BOM } from "@/lib/csv";
 import { isPesoInput, parsePesoInput, toPesoInput } from "@/lib/money";
 import { slugify, uniqueSlug } from "@/lib/slug";
 import { stockHealth } from "@/lib/stock-math";
@@ -91,6 +91,14 @@ describe("csv encoding", () => {
   it("guards cells Excel would treat as a formula", () => {
     const csv = toCsv([{ v: "=1+1" }], [{ header: "V", value: (row) => row.v }]);
     expect(csv).toContain("'=1+1");
+    expect(toCsvLine(["-2+3", "@SUM(A1)", "\t=1"])).toBe("'-2+3,'@SUM(A1),'\t=1");
+  });
+
+  it("leaves negative amounts and quantities numeric", () => {
+    // A loss month or an outbound movement must stay a number in Excel.
+    expect(toCsvLine(["-1250.00", -3, "-7", "+63 917 555 0142"])).toBe(
+      "-1250.00,-3,-7,'+63 917 555 0142",
+    );
   });
 
   it("parses quoted fields containing commas and newlines", () => {

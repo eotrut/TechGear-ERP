@@ -18,18 +18,6 @@ import {
  * on the server with parsePesoInput, never through a float.
  */
 
-export const ORDER_STATUSES = [
-  "DRAFT",
-  "PENDING",
-  "PAID",
-  "PACKED",
-  "SHIPPED",
-  "DELIVERED",
-  "COMPLETED",
-  "CANCELLED",
-  "REFUNDED",
-] as const satisfies readonly OrderStatus[];
-
 export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   DRAFT: "Draft",
   PENDING: "Pending",
@@ -216,8 +204,6 @@ export const refundOrderSchema = z.object({
   reason: text(280, { min: 5, required: "Say why the money is going back." }),
   reference: text(60),
 });
-
-export const orderIdSchema = z.object({ orderId: requiredId("Missing order.") });
 
 // ------------------------------------------------------------------- lists
 

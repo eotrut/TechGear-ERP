@@ -50,6 +50,10 @@ const databaseUrl = inject("databaseUrl");
 // Fixture variants are priced at PHP 2,500.00.
 const PRICE = 250_000;
 
+// What the matrix gives a Manager and a salesperson over cancelling.
+const MANAGER_GRANT = { scope: "all", canRefund: true } as const;
+const SALES_GRANT = { scope: "own", canRefund: false } as const;
+
 describe.skipIf(databaseUrl === "")("orders", () => {
   let db: PrismaClient;
 
@@ -325,6 +329,7 @@ describe.skipIf(databaseUrl === "")("orders", () => {
           tx,
           { orderId: order.id, reason: "Customer changed their mind" },
           { id: f.userId },
+          MANAGER_GRANT,
         ),
       );
       expect(result.refundedCentavos).toBe(0);
@@ -341,7 +346,12 @@ describe.skipIf(databaseUrl === "")("orders", () => {
       await receive(db, f, f.variants[0]!, f.warehouseA, 4, 160_000);
 
       const result = await runStockTransaction(db, (tx) =>
-        cancelOrder(tx, { orderId: order.id, reason: "Out of delivery area" }, { id: f.userId }),
+        cancelOrder(
+          tx,
+          { orderId: order.id, reason: "Out of delivery area" },
+          { id: f.userId },
+          MANAGER_GRANT,
+        ),
       );
       expect(result.refundedCentavos).toBe(2 * PRICE);
       expect(result.restockedUnits).toBe(2);
@@ -373,9 +383,59 @@ describe.skipIf(databaseUrl === "")("orders", () => {
 
       await expect(
         runStockTransaction(db, (tx) =>
-          cancelOrder(tx, { orderId: order.id, reason: "Too late" }, { id: f.userId }),
+          cancelOrder(
+            tx,
+            { orderId: order.id, reason: "Too late" },
+            { id: f.userId },
+            MANAGER_GRANT,
+          ),
         ),
       ).rejects.toThrow(/Raise a return/);
+    });
+
+    it("re-checks a salesperson's grant under the lock, so a paid order is not refunded", async () => {
+      // The action authorizes against a read taken before the lock. If the
+      // order is paid in between, the service must still refuse.
+      const f = await createFixture(db);
+      await receive(db, f, f.variants[0]!, f.warehouseA, 3);
+      const order = await place(f, draft(f, [{ variant: 0, qty: 1 }]), "paid", cash(PRICE));
+
+      await expect(
+        runStockTransaction(db, (tx) =>
+          cancelOrder(
+            tx,
+            { orderId: order.id, reason: "Changed mind" },
+            { id: f.userId },
+            SALES_GRANT,
+          ),
+        ),
+      ).rejects.toThrow(/has been paid/);
+
+      const saved = await db.order.findUniqueOrThrow({ where: { id: order.id } });
+      expect(saved.status).toBe("PAID");
+      expect(saved.amountRefundedCentavos).toBe(0);
+    });
+
+    it("lets a salesperson cancel only their own orders", async () => {
+      const f = await createFixture(db);
+      await receive(db, f, f.variants[0]!, f.warehouseA, 3);
+      const order = await place(f, draft(f, [{ variant: 0, qty: 1 }]));
+
+      await expect(
+        runStockTransaction(db, (tx) =>
+          cancelOrder(
+            tx,
+            { orderId: order.id, reason: "Not mine" },
+            { id: "someone-else" },
+            SALES_GRANT,
+          ),
+        ),
+      ).rejects.toThrow(/another salesperson/);
+
+      const own = await runStockTransaction(db, (tx) =>
+        cancelOrder(tx, { orderId: order.id, reason: "Mine" }, { id: f.userId }, SALES_GRANT),
+      );
+      expect(own.from).toBe("PENDING");
     });
   });
 

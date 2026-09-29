@@ -15,9 +15,11 @@ export const authConfig = {
     strategy: "jwt",
     // A shortish window limits how long a revoked role stays in a token. Every
     // mutation re-reads the live user anyway (decision D-12), so this is defence
-    // in depth rather than the control itself.
+    // in depth rather than the control itself. It is a fixed eight hours from
+    // sign-in, one shift: middleware drops Auth.js's per-request refresh, which
+    // could undo a sign-out (see middleware.ts). `updateAge` is not set because
+    // it only applies to database sessions.
     maxAge: 60 * 60 * 8,
-    updateAge: 60 * 15,
   },
   pages: {
     signIn: "/login",

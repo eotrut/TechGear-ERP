@@ -23,12 +23,13 @@ import { CHANNEL_LABEL } from "@/lib/channels";
 import { formatDate, formatDateTime, formatRelative } from "@/lib/format";
 import { formatPeso } from "@/lib/money";
 import { can, scopeFor } from "@/lib/rbac/can";
-import { requirePermission } from "@/lib/rbac/guard";
+import { currentUserCan, requirePermission } from "@/lib/rbac/guard";
 import { cn } from "@/lib/utils";
 
 type Params = Promise<{ id: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  if (!(await currentUserCan("tickets.view"))) return { title: "Ticket" };
   const { id } = await params;
   const ticket = await getTicket(id);
   return { title: ticket ? `${ticket.ticketNumber} ${ticket.subject}` : "Ticket" };

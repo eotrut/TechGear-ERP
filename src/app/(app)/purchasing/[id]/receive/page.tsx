@@ -7,11 +7,12 @@ import { ReceiveForm } from "@/features/purchasing/components/receive-form";
 import { getPurchaseOrder } from "@/features/purchasing/queries";
 import { isReceivable } from "@/features/purchasing/services/purchase-rules";
 import { formatDate } from "@/lib/format";
-import { requirePermission } from "@/lib/rbac/guard";
+import { currentUserCan, requirePermission } from "@/lib/rbac/guard";
 
 type Params = Promise<{ id: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  if (!(await currentUserCan("purchasing.receive"))) return { title: "Receive delivery" };
   const { id } = await params;
   const po = await getPurchaseOrder(id, { withBills: false });
   return { title: po ? `Receive ${po.poNumber}` : "Receive delivery" };

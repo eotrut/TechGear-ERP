@@ -10,6 +10,7 @@ import { recordAudit } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { DomainError } from "@/lib/errors";
 import { formatPeso, parsePesoInput } from "@/lib/money";
+import { can } from "@/lib/rbac/can";
 import { authorizeAction, authorizeRecord } from "@/lib/rbac/guard";
 
 import {
@@ -279,7 +280,12 @@ export async function cancelOrderAction(input: unknown): Promise<ActionResult> {
   if (!owner) return { ok: false, error: "That order does not exist." };
 
   // Sales may cancel their own orders; cancelling after payment is a refund.
-  const { user } = await authorizeRecord("orders.cancel", owner.salespersonId ?? owner.createdById);
+  // Both are checked here for a clear refusal, and again by the service under
+  // the row lock, since the order can be paid between this read and the lock.
+  const { user, access } = await authorizeRecord(
+    "orders.cancel",
+    owner.salespersonId ?? owner.createdById,
+  );
   if (cancelNeedsRefund(owner.status)) await authorizeAction("orders.refund");
 
   try {
@@ -293,6 +299,7 @@ export async function cancelOrderAction(input: unknown): Promise<ActionResult> {
           refundReference: parsed.data.refundReference,
         },
         user,
+        { scope: access, canRefund: can(user.role, "orders.refund") },
       );
       await recordAudit({
         actorId: user.id,

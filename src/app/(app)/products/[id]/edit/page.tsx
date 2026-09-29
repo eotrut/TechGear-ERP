@@ -5,11 +5,12 @@ import { PageHeader } from "@/components/layout/page-header";
 import { ProductForm } from "@/features/products/components/product-form";
 import { catalogueOptions, getProductFormValues } from "@/features/products/queries";
 import { can } from "@/lib/rbac/can";
-import { requirePermission } from "@/lib/rbac/guard";
+import { currentUserCan, requirePermission } from "@/lib/rbac/guard";
 
 type Params = Promise<{ id: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  if (!(await currentUserCan("products.update"))) return { title: "Edit product" };
   const { id } = await params;
   const product = await getProductFormValues(id);
   return { title: product ? `Edit ${product.name}` : "Edit product" };

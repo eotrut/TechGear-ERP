@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { auditActionTone, StatusBadge } from "@/components/ui/status-badge";
 import { AuditFilters } from "@/features/audit/components/audit-filters";
 import { auditFilterOptions, listAuditEntries, type AuditEntry } from "@/features/audit/queries";
+import { auditFiltersSchema } from "@/features/audit/schemas";
 import { formatDateTime } from "@/lib/format";
 import { requirePermission } from "@/lib/rbac/guard";
 
@@ -54,21 +55,19 @@ export default async function AuditPage({ searchParams }: { searchParams: Search
   await requirePermission("audit.view");
 
   const params = await searchParams;
-  const page = Number.parseInt(single(params.page) ?? "1", 10);
-  const from = single(params.from);
-  const to = single(params.to);
+  const filters = auditFiltersSchema.parse({
+    actorId: single(params.actorId),
+    action: single(params.action),
+    entityType: single(params.entityType),
+    search: single(params.search),
+    from: single(params.from),
+    to: single(params.to),
+    page: single(params.page),
+  });
+  const { page } = filters;
 
   const [{ entries, total, pageCount }, options] = await Promise.all([
-    listAuditEntries({
-      actorId: single(params.actorId),
-      action: single(params.action) as Parameters<typeof listAuditEntries>[0]["action"],
-      entityType: single(params.entityType),
-      search: single(params.search),
-      from: from ? new Date(`${from}T00:00:00`) : undefined,
-      // Inclusive of the whole end day, which is what a person picking a date means.
-      to: to ? new Date(`${to}T23:59:59.999`) : undefined,
-      page: Number.isFinite(page) ? page : 1,
-    }),
+    listAuditEntries(filters),
     auditFilterOptions(),
   ]);
 

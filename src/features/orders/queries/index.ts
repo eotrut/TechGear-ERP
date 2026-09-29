@@ -1,6 +1,7 @@
 import type { OrderStatus, PaymentMethod, Prisma, SalesChannel } from "@prisma/client";
 
 import { db } from "@/lib/db";
+import { toPesoInput } from "@/lib/money";
 import { emptyToNull } from "@/lib/validation";
 
 import type { OrderFilters, OrderFormValues, OrderView } from "../schemas";
@@ -474,10 +475,10 @@ export async function orderForEdit(id: string) {
     warehouseId: order.warehouseId,
     shippingAddressId: order.shippingAddressId ?? "",
     channelReference: order.channelReference ?? "",
-    shipping: order.shippingCentavos ? (order.shippingCentavos / 100).toFixed(2) : "",
+    shipping: order.shippingCentavos ? toPesoInput(order.shippingCentavos) : "",
     promoCode: order.promoCodeSnapshot ?? "",
     manualDiscountType: manualHeader > 0 ? "FIXED" : "NONE",
-    manualDiscountValue: manualHeader > 0 ? (manualHeader / 100).toFixed(2) : "",
+    manualDiscountValue: manualHeader > 0 ? toPesoInput(manualHeader) : "",
     notes: order.notes ?? "",
     lines: order.items.map((item) => ({ variantId: item.variantId, qty: item.qty, discount: "" })),
     intent: "draft",

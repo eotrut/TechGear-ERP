@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
+import { requirePermission } from "@/lib/rbac/guard";
 
 export const metadata: Metadata = {
   title: "Design tokens",
@@ -52,7 +53,11 @@ function Section({ title, children }: { title: string; children: React.ReactNode
  * both themes at every breakpoint before real pages are built on top of it.
  * See docs/PLAN.md risk RK-4.
  */
-export default function DesignTokensPage() {
+export default async function DesignTokensPage() {
+  // The route gate lets every role in; the page still checks the live user,
+  // like every other page, so a deactivated session stops here.
+  await requirePermission("dashboard.view");
+
   return (
     <div className="mx-auto w-full max-w-[1280px]">
       <PageHeader

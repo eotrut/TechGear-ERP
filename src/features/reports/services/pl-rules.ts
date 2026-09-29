@@ -74,10 +74,6 @@ export function addComponents(into: PlComponents, other: PlComponents): PlCompon
   return into;
 }
 
-export function operatingProfitOf(c: PlComponents): number {
-  return assembleStatement(c).operatingProfit;
-}
-
 export function assembleStatement(c: PlComponents): PlStatement {
   const grossProfit = c.netSales - c.cogs;
 

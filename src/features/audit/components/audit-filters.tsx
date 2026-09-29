@@ -8,18 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const ACTIONS = [
-  "CREATE",
-  "UPDATE",
-  "DELETE",
-  "LOGIN",
-  "LOGIN_FAILED",
-  "LOGOUT",
-  "STATUS_CHANGE",
-  "PRICE_CHANGE",
-  "STOCK_ADJUST",
-  "EXPORT",
-];
+import { AUDIT_ACTIONS } from "../schemas";
 
 export function AuditFilters({
   actors,
@@ -47,7 +36,7 @@ export function AuditFilters({
   return (
     <form
       action={apply}
-      className="mb-4 grid gap-3 rounded-lg border border-hairline bg-surface-1 p-3 sm:grid-cols-2 lg:grid-cols-6"
+      className="mb-4 grid gap-3 rounded-lg border border-hairline bg-surface-1 p-3 sm:grid-cols-2 lg:grid-cols-5"
     >
       <div className="flex flex-col gap-1.5 lg:col-span-2">
         <Label htmlFor="search" className="text-caption">
@@ -91,7 +80,7 @@ export function AuditFilters({
           className="h-8 rounded-md border border-input bg-canvas px-2 text-body-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-fill"
         >
           <option value="">Any action</option>
-          {ACTIONS.map((action) => (
+          {AUDIT_ACTIONS.map((action) => (
             <option key={action} value={action}>
               {action.replace(/_/g, " ").toLowerCase()}
             </option>
@@ -118,7 +107,8 @@ export function AuditFilters({
         </select>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 lg:col-span-1">
+      {/* The range takes two columns: a date input needs about 130px to show its value. */}
+      <div className="grid grid-cols-2 gap-2 sm:col-span-2">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="from" className="text-caption">
             From
@@ -133,7 +123,7 @@ export function AuditFilters({
         </div>
       </div>
 
-      <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-6">
+      <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-3">
         <Button type="submit" variant="primary" disabled={isPending}>
           {isPending ? "Filtering" : "Apply filters"}
         </Button>

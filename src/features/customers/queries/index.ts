@@ -21,13 +21,24 @@ export const CUSTOMER_PAGE_SIZE = 25;
 
 const OPEN_TICKET_STATUSES = ["OPEN", "IN_PROGRESS", "WAITING_CUSTOMER"] as const;
 
-function orderByFor(filters: CustomerFilters): Prisma.CustomerOrderByWithRelationInput[] {
+/**
+ * Without money access the value column is stripped, and so is ordering by it:
+ * a list ranked by lifetime value shows who spends most without a number.
+ */
+function orderByFor(
+  filters: CustomerFilters,
+  withMoney: boolean,
+): Prisma.CustomerOrderByWithRelationInput[] {
   const dir = filters.dir;
+  if (!withMoney && filters.sort === "ltv") return [{ displayName: "asc" }];
   switch (filters.sort) {
     case "name":
       return [{ displayName: dir }];
     case "orders":
-      return [{ orderCount: dir }, { lifetimeValueCentavos: "desc" }];
+      return [
+        { orderCount: dir },
+        withMoney ? { lifetimeValueCentavos: "desc" } : { displayName: "asc" },
+      ];
     case "lastOrder":
       return [{ lastOrderAt: { sort: dir, nulls: "last" } }, { displayName: "asc" }];
     case "created":
@@ -67,7 +78,7 @@ export async function listCustomers(filters: CustomerFilters, options: { withMon
     db.customer.count({ where }),
     db.customer.findMany({
       where,
-      orderBy: orderByFor(filters),
+      orderBy: orderByFor(filters, options.withMoney),
       skip: (filters.page - 1) * CUSTOMER_PAGE_SIZE,
       take: CUSTOMER_PAGE_SIZE,
       select: {

@@ -10,11 +10,12 @@ import { canPrintDocuments, hasDocument } from "@/features/orders/services/print
 import { ReceiptActions } from "@/features/pos/components/receipt-actions";
 import { formatDateTime } from "@/lib/format";
 import { formatPeso } from "@/lib/money";
-import { requirePermission } from "@/lib/rbac/guard";
+import { currentUserCan, requirePermission } from "@/lib/rbac/guard";
 
 type Params = Promise<{ orderId: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  if (!(await currentUserCan("pos.use"))) return { title: "Sale" };
   const { orderId } = await params;
   const printable = await printableOrder(orderId);
   return { title: printable ? `Sale ${printable.order.orderNumber}` : "Sale" };

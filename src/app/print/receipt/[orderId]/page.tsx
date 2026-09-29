@@ -6,11 +6,12 @@ import { ReceiptView } from "@/features/orders/components/sales-document";
 import { printableOrder } from "@/features/orders/queries";
 import { salesDocument } from "@/features/orders/services/documents";
 import { canPrintDocuments, hasDocument } from "@/features/orders/services/print-access";
-import { requirePermission } from "@/lib/rbac/guard";
+import { currentUserCan, requirePermission } from "@/lib/rbac/guard";
 
 type Params = Promise<{ orderId: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  if (!(await currentUserCan("orders.print"))) return { title: "Receipt" };
   const { orderId } = await params;
   const printable = await printableOrder(orderId);
   return { title: printable ? `Receipt ${printable.order.orderNumber}` : "Receipt" };

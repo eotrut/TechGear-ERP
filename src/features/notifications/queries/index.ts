@@ -80,11 +80,6 @@ export async function notificationSummary(userId: string): Promise<NotificationS
   return { unread, items: rows.map(toItem) };
 }
 
-/** Just the count, for the badge on first paint. */
-export async function unreadCount(userId: string): Promise<number> {
-  return db.notification.count({ where: { userId, readAt: null } });
-}
-
 export const NOTIFICATIONS_PAGE_SIZE = 30;
 
 export type NotificationDay = { key: string; label: string; items: NotificationItem[] };

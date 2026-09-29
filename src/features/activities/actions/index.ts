@@ -80,10 +80,7 @@ export async function createActivityAction(input: unknown): Promise<ActionResult
   }
 }
 
-async function changeStatus(
-  input: unknown,
-  change: "complete" | "reopen" | "cancel",
-): Promise<ActionResult> {
+async function changeStatus(input: unknown, change: "complete" | "reopen"): Promise<ActionResult> {
   const { user } = await authorizeAction("activities.manageOwn");
 
   const parsed = activityIdSchema.safeParse(input);
@@ -102,9 +99,7 @@ async function changeStatus(
           action: "STATUS_CHANGE",
           entityType: "Activity",
           entityId: updated.id,
-          summary: `${
-            change === "complete" ? "Completed" : change === "reopen" ? "Reopened" : "Cancelled"
-          } "${updated.subject}".`,
+          summary: `${change === "complete" ? "Completed" : "Reopened"} "${updated.subject}".`,
           changes: { status: { from: updated.from, to: updated.to } },
           tx,
         });
@@ -133,8 +128,4 @@ export async function completeActivityAction(input: unknown): Promise<ActionResu
 
 export async function reopenActivityAction(input: unknown): Promise<ActionResult> {
   return changeStatus(input, "reopen");
-}
-
-export async function cancelActivityAction(input: unknown): Promise<ActionResult> {
-  return changeStatus(input, "cancel");
 }

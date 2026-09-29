@@ -1,12 +1,14 @@
 "use server";
 
-import bcrypt from "bcryptjs";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 import type { ActionResult } from "@/features/auth/actions";
+import { hashPassword } from "@/features/auth/services/password";
 import { recordAudit } from "@/lib/audit";
 import { diffRecords } from "@/lib/audit-diff";
 import { db } from "@/lib/db";
+import { DomainError } from "@/lib/errors";
 import { authorizeAction } from "@/lib/rbac/guard";
 
 import {
@@ -26,12 +28,29 @@ import {
  * nobody able to administer it.
  */
 
-const BCRYPT_ROUNDS = 12;
+const LAST_ADMIN = "This is the last active administrator. Promote someone else first.";
 
-async function countOtherActiveAdmins(excludingUserId: string): Promise<number> {
-  return db.user.count({
-    where: { role: "ADMIN", isActive: true, id: { not: excludingUserId } },
-  });
+/**
+ * Active administrators other than this one, counted under a lock on every
+ * active admin row. Counted outside the transaction, two admins demoting each
+ * other at once would each see the other as the survivor and both succeed.
+ * With the rows locked the second waits, re-reads, and is refused.
+ */
+async function lockOtherActiveAdmins(
+  tx: Prisma.TransactionClient,
+  excludingUserId: string,
+): Promise<number> {
+  const admins = await tx.$queryRaw<{ id: string }[]>`
+    SELECT id FROM "User"
+    WHERE role = 'ADMIN' AND "isActive" = true
+    ORDER BY id COLLATE "C"
+    FOR UPDATE
+  `;
+  return admins.filter((admin) => admin.id !== excludingUserId).length;
+}
+
+function isDuplicateEmail(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }
 
 export async function createUserAction(
@@ -57,36 +76,48 @@ export async function createUserAction(
   const existing = await db.user.findUnique({ where: { email }, select: { id: true } });
   if (existing) return { ok: false, error: "That email address is already in use." };
 
-  const created = await db.$transaction(async (tx) => {
-    const record = await tx.user.create({
-      data: {
-        name: parsed.data.name,
-        email,
-        role: parsed.data.role,
-        phone: parsed.data.phone,
-        passwordHash: await bcrypt.hash(parsed.data.password, BCRYPT_ROUNDS),
-        isActive: true,
-      },
-      select: { id: true, name: true, email: true, role: true },
-    });
+  // Hashed before the transaction opens: bcrypt is deliberately slow.
+  const passwordHash = await hashPassword(parsed.data.password);
 
-    await recordAudit({
-      actorId: actor.id,
-      actorEmail: actor.email,
-      action: "CREATE",
-      entityType: "User",
-      entityId: record.id,
-      summary: `Created user ${record.name} (${record.email}) with role ${record.role}.`,
-      changes: {
-        name: { from: null, to: record.name },
-        email: { from: null, to: record.email },
-        role: { from: null, to: record.role },
-      },
-      tx,
-    });
+  let created: { id: string; name: string; email: string; role: string };
+  try {
+    created = await db.$transaction(async (tx) => {
+      const record = await tx.user.create({
+        data: {
+          name: parsed.data.name,
+          email,
+          role: parsed.data.role,
+          phone: parsed.data.phone,
+          passwordHash,
+          isActive: true,
+        },
+        select: { id: true, name: true, email: true, role: true },
+      });
 
-    return record;
-  });
+      await recordAudit({
+        actorId: actor.id,
+        actorEmail: actor.email,
+        action: "CREATE",
+        entityType: "User",
+        entityId: record.id,
+        summary: `Created user ${record.name} (${record.email}) with role ${record.role}.`,
+        changes: {
+          name: { from: null, to: record.name },
+          email: { from: null, to: record.email },
+          role: { from: null, to: record.role },
+        },
+        tx,
+      });
+
+      return record;
+    });
+  } catch (error) {
+    // Someone took the address between the check above and the insert.
+    if (isDuplicateEmail(error)) {
+      return { ok: false, error: "That email address is already in use." };
+    }
+    throw error;
+  }
 
   revalidatePath("/settings/users");
   return { ok: true, message: `${created.name} can now sign in.` };
@@ -109,45 +140,46 @@ export async function updateUserAction(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Check the form and try again." };
   }
 
-  const before = await db.user.findUnique({
-    where: { id: parsed.data.userId },
-    select: { id: true, name: true, email: true, role: true, phone: true, isActive: true },
-  });
-  if (!before) return { ok: false, error: "That user no longer exists." };
+  try {
+    await db.$transaction(async (tx) => {
+      // The admin rows are locked before the user row, on every path, so two
+      // of these cannot deadlock each other.
+      const others = await lockOtherActiveAdmins(tx, parsed.data.userId);
 
-  // Do not let the last administrator demote themselves out of the system.
-  const demotingAnAdmin = before.role === "ADMIN" && parsed.data.role !== "ADMIN";
-  if (demotingAnAdmin && before.isActive) {
-    const others = await countOtherActiveAdmins(before.id);
-    if (others === 0) {
-      return {
-        ok: false,
-        error: "This is the last active administrator. Promote someone else first.",
-      };
-    }
+      const before = await tx.user.findUnique({
+        where: { id: parsed.data.userId },
+        select: { id: true, name: true, email: true, role: true, phone: true, isActive: true },
+      });
+      if (!before) throw new DomainError("That user no longer exists.");
+
+      // Do not let the last administrator demote themselves out of the system.
+      const demotingAnAdmin = before.role === "ADMIN" && parsed.data.role !== "ADMIN";
+      if (demotingAnAdmin && before.isActive && others === 0) throw new DomainError(LAST_ADMIN);
+
+      const after = await tx.user.update({
+        where: { id: before.id },
+        data: { name: parsed.data.name, role: parsed.data.role, phone: parsed.data.phone },
+        select: { id: true, name: true, email: true, role: true, phone: true, isActive: true },
+      });
+
+      await recordAudit({
+        actorId: actor.id,
+        actorEmail: actor.email,
+        action: "UPDATE",
+        entityType: "User",
+        entityId: before.id,
+        summary:
+          before.role === after.role
+            ? `Updated user ${after.name} (${after.email}).`
+            : `Changed role for ${after.name} (${after.email}) from ${before.role} to ${after.role}.`,
+        changes: diffRecords(before, after),
+        tx,
+      });
+    });
+  } catch (error) {
+    if (error instanceof DomainError) return { ok: false, error: error.message };
+    throw error;
   }
-
-  await db.$transaction(async (tx) => {
-    const after = await tx.user.update({
-      where: { id: before.id },
-      data: { name: parsed.data.name, role: parsed.data.role, phone: parsed.data.phone },
-      select: { id: true, name: true, email: true, role: true, phone: true, isActive: true },
-    });
-
-    await recordAudit({
-      actorId: actor.id,
-      actorEmail: actor.email,
-      action: "UPDATE",
-      entityType: "User",
-      entityId: before.id,
-      summary:
-        before.role === after.role
-          ? `Updated user ${after.name} (${after.email}).`
-          : `Changed role for ${after.name} (${after.email}) from ${before.role} to ${after.role}.`,
-      changes: diffRecords(before, after),
-      tx,
-    });
-  });
 
   revalidatePath("/settings/users");
   return { ok: true, message: "User updated." };
@@ -166,47 +198,50 @@ export async function setUserActiveAction(
 
   if (!parsed.success) return { ok: false, error: "Could not read that request." };
 
-  const target = await db.user.findUnique({
-    where: { id: parsed.data.userId },
-    select: { id: true, name: true, email: true, role: true, isActive: true },
-  });
-  if (!target) return { ok: false, error: "That user no longer exists." };
-
-  if (!parsed.data.isActive) {
-    // Locking yourself out is never what you meant.
-    if (target.id === actor.id) {
-      return { ok: false, error: "You cannot deactivate your own account." };
-    }
-    if (target.role === "ADMIN") {
-      const others = await countOtherActiveAdmins(target.id);
-      if (others === 0) {
-        return {
-          ok: false,
-          error: "This is the last active administrator. Promote someone else first.",
-        };
-      }
-    }
+  // Locking yourself out is never what you meant.
+  if (!parsed.data.isActive && parsed.data.userId === actor.id) {
+    return { ok: false, error: "You cannot deactivate your own account." };
   }
 
-  await db.$transaction(async (tx) => {
-    await tx.user.update({
-      where: { id: target.id },
-      data: { isActive: parsed.data.isActive },
-    });
+  let target: { name: string };
+  try {
+    target = await db.$transaction(async (tx) => {
+      const others = await lockOtherActiveAdmins(tx, parsed.data.userId);
 
-    await recordAudit({
-      actorId: actor.id,
-      actorEmail: actor.email,
-      action: "UPDATE",
-      entityType: "User",
-      entityId: target.id,
-      summary: parsed.data.isActive
-        ? `Reactivated ${target.name} (${target.email}).`
-        : `Deactivated ${target.name} (${target.email}).`,
-      changes: { isActive: { from: target.isActive, to: parsed.data.isActive } },
-      tx,
+      const record = await tx.user.findUnique({
+        where: { id: parsed.data.userId },
+        select: { id: true, name: true, email: true, role: true, isActive: true },
+      });
+      if (!record) throw new DomainError("That user no longer exists.");
+
+      if (!parsed.data.isActive && record.role === "ADMIN" && others === 0) {
+        throw new DomainError(LAST_ADMIN);
+      }
+
+      await tx.user.update({
+        where: { id: record.id },
+        data: { isActive: parsed.data.isActive },
+      });
+
+      await recordAudit({
+        actorId: actor.id,
+        actorEmail: actor.email,
+        action: "UPDATE",
+        entityType: "User",
+        entityId: record.id,
+        summary: parsed.data.isActive
+          ? `Reactivated ${record.name} (${record.email}).`
+          : `Deactivated ${record.name} (${record.email}).`,
+        changes: { isActive: { from: record.isActive, to: parsed.data.isActive } },
+        tx,
+      });
+
+      return record;
     });
-  });
+  } catch (error) {
+    if (error instanceof DomainError) return { ok: false, error: error.message };
+    throw error;
+  }
 
   revalidatePath("/settings/users");
   return {
@@ -238,11 +273,10 @@ export async function resetUserPasswordAction(
   });
   if (!target) return { ok: false, error: "That user no longer exists." };
 
+  const passwordHash = await hashPassword(parsed.data.newPassword);
+
   await db.$transaction(async (tx) => {
-    await tx.user.update({
-      where: { id: target.id },
-      data: { passwordHash: await bcrypt.hash(parsed.data.newPassword, BCRYPT_ROUNDS) },
-    });
+    await tx.user.update({ where: { id: target.id }, data: { passwordHash } });
 
     await recordAudit({
       actorId: actor.id,
@@ -255,10 +289,10 @@ export async function resetUserPasswordAction(
       changes: { passwordHash: { from: "[redacted]", to: "[redacted]" } },
       tx,
     });
-  });
 
-  // Any failed attempts that locked the account are no longer relevant.
-  await db.loginAttempt.deleteMany({ where: { email: target.email, success: false } });
+    // Any failed attempts that locked the account are no longer relevant.
+    await tx.loginAttempt.deleteMany({ where: { email: target.email, success: false } });
+  });
 
   revalidatePath("/settings/users");
   return { ok: true, message: `Password reset for ${target.name}.` };

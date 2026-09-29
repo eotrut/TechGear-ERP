@@ -6,13 +6,16 @@ import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
-import { recordAuditSafe, requestContext } from "@/lib/audit";
+import { recordAudit, recordAuditSafe, requestContext } from "@/lib/audit";
+import { diffRecords } from "@/lib/audit-diff";
 import { signIn, signOut } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { authorizeAction } from "@/lib/rbac/guard";
 import { LOGIN_WINDOW_MINUTES } from "@/lib/rate-limit";
 
 import { changePasswordSchema, loginSchema, updateProfileSchema } from "../schemas";
+import { hashPassword } from "../services/password";
+import { safeRedirectTarget } from "../services/redirect";
 
 export type ActionResult = { ok: true; message?: string } | { ok: false; error: string };
 
@@ -64,16 +67,6 @@ export async function loginAction(_previous: unknown, formData: FormData): Promi
   }
 
   redirect(destination);
-}
-
-/**
- * Only ever redirect within this app. Taking the raw `next` parameter would
- * turn the login page into an open redirect.
- */
-function safeRedirectTarget(next: string | undefined): string {
-  if (!next) return "/dashboard";
-  if (!next.startsWith("/") || next.startsWith("//")) return "/dashboard";
-  return next;
 }
 
 export async function logoutAction(): Promise<void> {
@@ -131,20 +124,24 @@ export async function changePasswordAction(
     return { ok: false, error: "Your current password is not correct." };
   }
 
-  await db.user.update({
-    where: { id: user.id },
-    data: { passwordHash: await bcrypt.hash(parsed.data.newPassword, 12) },
-  });
+  // Hash before opening the transaction: bcrypt is deliberately slow, and the
+  // row lock should not wait on it.
+  const passwordHash = await hashPassword(parsed.data.newPassword);
 
-  await recordAuditSafe({
-    actorId: user.id,
-    actorEmail: user.email,
-    action: "UPDATE",
-    entityType: "User",
-    entityId: user.id,
-    summary: `${user.name} changed their own password.`,
-    // The hash never enters the trail, only the fact that it changed.
-    changes: { passwordHash: { from: "[redacted]", to: "[redacted]" } },
+  // The change and its audit entry commit together, like every other mutation.
+  await db.$transaction(async (tx) => {
+    await tx.user.update({ where: { id: user.id }, data: { passwordHash } });
+    await recordAudit({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: "UPDATE",
+      entityType: "User",
+      entityId: user.id,
+      summary: `${user.name} changed their own password.`,
+      // The hash never enters the trail, only the fact that it changed.
+      changes: { passwordHash: { from: "[redacted]", to: "[redacted]" } },
+      tx,
+    });
   });
 
   revalidatePath("/account");
@@ -166,31 +163,26 @@ export async function updateProfileAction(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Check the form and try again." };
   }
 
-  const before = await db.user.findUnique({
-    where: { id: user.id },
-    select: { name: true, phone: true },
-  });
-
-  await db.user.update({
-    where: { id: user.id },
-    data: { name: parsed.data.name, phone: parsed.data.phone },
-  });
-
-  await recordAuditSafe({
-    actorId: user.id,
-    actorEmail: user.email,
-    action: "UPDATE",
-    entityType: "User",
-    entityId: user.id,
-    summary: `${user.name} updated their profile.`,
-    changes: {
-      ...(before?.name !== parsed.data.name
-        ? { name: { from: before?.name ?? null, to: parsed.data.name } }
-        : {}),
-      ...(before?.phone !== parsed.data.phone
-        ? { phone: { from: before?.phone ?? null, to: parsed.data.phone } }
-        : {}),
-    },
+  await db.$transaction(async (tx) => {
+    const before = await tx.user.findUniqueOrThrow({
+      where: { id: user.id },
+      select: { name: true, phone: true },
+    });
+    const after = await tx.user.update({
+      where: { id: user.id },
+      data: { name: parsed.data.name, phone: parsed.data.phone },
+      select: { name: true, phone: true },
+    });
+    await recordAudit({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: "UPDATE",
+      entityType: "User",
+      entityId: user.id,
+      summary: `${after.name} updated their profile.`,
+      changes: diffRecords(before, after),
+      tx,
+    });
   });
 
   revalidatePath("/account");

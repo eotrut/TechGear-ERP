@@ -1,7 +1,10 @@
-import type { AuditAction, Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 
 import { db } from "@/lib/db";
+import { parseManilaDate } from "@/lib/format";
 import { requirePermission } from "@/lib/rbac/guard";
+
+import type { AuditFilters } from "../schemas";
 
 /**
  * Audit log reads. Server-paginated: the table grows without bound, so it is
@@ -10,28 +13,25 @@ import { requirePermission } from "@/lib/rbac/guard";
 
 export const AUDIT_PAGE_SIZE = 50;
 
-export type AuditFilters = {
-  actorId?: string;
-  action?: AuditAction;
-  entityType?: string;
-  from?: Date;
-  to?: Date;
-  search?: string;
-  page: number;
-};
+const DAY_MS = 86_400_000;
 
 export async function listAuditEntries(filters: AuditFilters) {
   await requirePermission("audit.view");
+
+  // Whole Manila days, whatever time zone the server process runs in.
+  const from = filters.from ? parseManilaDate(filters.from) : null;
+  const toDay = filters.to ? parseManilaDate(filters.to) : null;
+  const before = toDay ? new Date(toDay.getTime() + DAY_MS) : null;
 
   const where: Prisma.AuditLogWhereInput = {
     ...(filters.actorId ? { actorId: filters.actorId } : {}),
     ...(filters.action ? { action: filters.action } : {}),
     ...(filters.entityType ? { entityType: filters.entityType } : {}),
-    ...(filters.from || filters.to
+    ...(from || before
       ? {
           createdAt: {
-            ...(filters.from ? { gte: filters.from } : {}),
-            ...(filters.to ? { lte: filters.to } : {}),
+            ...(from ? { gte: from } : {}),
+            ...(before ? { lt: before } : {}),
           },
         }
       : {}),

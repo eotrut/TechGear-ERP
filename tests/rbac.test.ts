@@ -1,6 +1,10 @@
 import type { Role } from "@prisma/client";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
+import { safeRedirectTarget } from "@/features/auth/services/redirect";
 import {
   can,
   canAll,
@@ -12,6 +16,7 @@ import {
 } from "@/lib/rbac/can";
 import { MATRIX, PERMISSIONS, type Permission } from "@/lib/rbac/matrix";
 import { isPublicRoute, permissionForRoute, ROUTE_RULES } from "@/lib/rbac/routes";
+import { withoutSessionRefresh } from "@/lib/session-cookie";
 
 const ROLES: Role[] = ["ADMIN", "MANAGER", "SALES", "WAREHOUSE"];
 
@@ -305,5 +310,82 @@ describe("route rules match the matrix", () => {
     const admin = reachable("ADMIN");
     expect(admin).toContain("/settings/users");
     expect(admin).toContain("/audit");
+  });
+});
+
+describe("sign-in redirect", () => {
+  it("returns to the page the person was headed for", () => {
+    expect(safeRedirectTarget("/orders?status=PENDING")).toBe("/orders?status=PENDING");
+    expect(safeRedirectTarget("/products/cm1abc/edit")).toBe("/products/cm1abc/edit");
+  });
+
+  it("never leaves the app, however the target is disguised", () => {
+    for (const hostile of [
+      "https://evil.example",
+      "//evil.example",
+      "/\\evil.example",
+      "/\t/evil.example",
+      "\\\\evil.example",
+      "javascript:alert(1)",
+    ]) {
+      expect(safeRedirectTarget(hostile), JSON.stringify(hostile)).toBe("/dashboard");
+    }
+  });
+
+  it("falls back to the dashboard when there is nowhere better", () => {
+    expect(safeRedirectTarget(undefined)).toBe("/dashboard");
+    expect(safeRedirectTarget("")).toBe("/dashboard");
+    expect(safeRedirectTarget("/login")).toBe("/dashboard");
+  });
+});
+
+describe("middleware session cookie", () => {
+  function response(...cookies: string[]) {
+    const headers = new Headers();
+    for (const cookie of cookies) headers.append("set-cookie", cookie);
+    return new Response(null, { headers });
+  }
+
+  it("drops Auth.js's per-request refresh, which could undo a sign-out", () => {
+    const filtered = withoutSessionRefresh(
+      response(
+        "authjs.session-token=eyJ; Path=/; HttpOnly",
+        "__Secure-authjs.session-token.0=eyJ; Path=/; Secure",
+        "theme=dark; Path=/",
+      ),
+    );
+    expect(filtered.headers.getSetCookie()).toEqual(["theme=dark; Path=/"]);
+  });
+
+  it("leaves a response without a session cookie untouched", () => {
+    const untouched = response("authjs.callback-url=%2F; Path=/");
+    expect(withoutSessionRefresh(untouched).headers.getSetCookie()).toEqual([
+      "authjs.callback-url=%2F; Path=/",
+    ]);
+  });
+});
+
+describe("middleware matcher", () => {
+  // Next reads `config` from the middleware file statically, so the matcher
+  // has to stay a literal there. Read it from the source rather than
+  // importing the module, which would boot Auth.js.
+  const source = readFileSync(resolve(__dirname, "../src/middleware.ts"), "utf8");
+  const literal = /matcher:\s*\[\s*(?:\/\*[\s\S]*?\*\/\s*)?"((?:[^"\\]|\\.)*)"/.exec(source)?.[1];
+  const matcher = new RegExp(`^${JSON.parse(`"${literal ?? ""}"`)}$`);
+
+  it("runs on every gated route and the pages beneath it", () => {
+    expect(literal).toBeDefined();
+    for (const rule of ROUTE_RULES) {
+      expect(matcher.test(rule.prefix), rule.prefix).toBe(true);
+      expect(matcher.test(`${rule.prefix}/some-record-id`), `${rule.prefix}/:id`).toBe(true);
+    }
+    expect(matcher.test("/products/new")).toBe(true);
+    expect(matcher.test("/products/cm1abc/edit")).toBe(true);
+  });
+
+  it("skips static files and the auth endpoints", () => {
+    expect(matcher.test("/products/k87-keyboard-1.svg")).toBe(false);
+    expect(matcher.test("/_next/static/chunks/app.js")).toBe(false);
+    expect(matcher.test("/api/auth/session")).toBe(false);
   });
 });

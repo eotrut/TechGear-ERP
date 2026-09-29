@@ -29,11 +29,12 @@ import { CHANNEL_LABEL } from "@/lib/channels";
 import { formatDate, formatRelative } from "@/lib/format";
 import { formatPeso } from "@/lib/money";
 import { can } from "@/lib/rbac/can";
-import { requirePermission } from "@/lib/rbac/guard";
+import { currentUserCan, requirePermission } from "@/lib/rbac/guard";
 
 type Params = Promise<{ id: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  if (!(await currentUserCan("customers.view360"))) return { title: "Customer" };
   const { id } = await params;
   const data = await getCustomer360(id);
   return { title: data?.customer.displayName ?? "Customer" };

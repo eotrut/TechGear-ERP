@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 
 import { db } from "@/lib/db";
+import { toPesoInput } from "@/lib/money";
 
 import type { PromoFormValues, PromoView } from "../schemas";
 import { promoState, type PromoState } from "../services/promo-rules";
@@ -94,8 +95,8 @@ export async function listPromos(view: PromoView, page: number, now: Date) {
         value:
           promo.type === "PERCENT"
             ? String((promo.percentBps ?? 0) / 100)
-            : ((promo.amountCentavos ?? 0) / 100).toFixed(2),
-        minSubtotal: promo.minSubtotalCentavos ? (promo.minSubtotalCentavos / 100).toFixed(2) : "",
+            : toPesoInput(promo.amountCentavos ?? 0),
+        minSubtotal: promo.minSubtotalCentavos ? toPesoInput(promo.minSubtotalCentavos) : "",
         startsOn: manilaDay(promo.startsAt),
         endsOn: manilaDay(promo.endsAt),
         usageLimit: promo.usageLimit === null ? "" : String(promo.usageLimit),
