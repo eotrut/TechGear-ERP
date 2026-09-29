@@ -12,15 +12,18 @@ loadEnv({ path: ".env", quiet: true });
 
 const databaseUrl = process.env.DATABASE_URL;
 
-if (!databaseUrl) {
+// `prisma generate` runs on `npm install` (postinstall) and never connects, so
+// a fresh clone can install before .env.local exists. Everything else needs
+// the database and fails here with instructions rather than deep in Prisma.
+const generating = process.argv.includes("generate");
+
+if (!databaseUrl && !generating) {
   throw new Error("DATABASE_URL is not set. Copy .env.example to .env.local and fill it in.");
 }
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
-  datasource: {
-    url: databaseUrl,
-  },
+  ...(databaseUrl ? { datasource: { url: databaseUrl } } : {}),
   migrations: {
     path: "prisma/migrations",
     seed: "tsx prisma/seed/index.ts",

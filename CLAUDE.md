@@ -72,12 +72,14 @@ npm run db:reset         # drop, re-migrate, re-seed
 npm run db:images        # draw the product illustrations into public/products
 npm test                 # Vitest: unit project, then the db project (needs Postgres)
 npm run test:db          # stock ledger and concurrency tests only
+npm run test:e2e         # Playwright flows (SPEC 9) against a running server; changes demo data
 npm run verify:rbac      # drives a browser through all four roles
 npm run verify:crm       # drags a lead, converts one, opens a ticket, checks the DB
 npm run verify:orders    # order, return and warranty claim, role by role, checks the DB
 npm run verify:pos       # rings up a register sale at tablet size, checks stock and the DB
 npm run verify:purchasing # raises, receives (twice), bills and pays a PO, checks stock and cost
 npm run gen:permissions  # regenerate docs/permissions.md from the matrix
+npm run gen:status-flows # regenerate docs/status-flows.md from the *_TRANSITIONS maps
 ```
 
 Copy `.env.example` to `.env.local` before first run. Every variable is
@@ -195,6 +197,10 @@ Prisma 7 changed two things the docs still get wrong in places:
 - **The datasource URL lives in `prisma.config.ts`, not `schema.prisma`.** That
   file also loads `.env.local` explicitly, because Prisma 7 no longer reads
   dotenv files on its own.
+- **Neither `npm install` nor `migrate dev` generates the client any more.**
+  The `postinstall` script runs `prisma generate`. `prisma.config.ts` skips its
+  `DATABASE_URL` check for `generate`, so a fresh clone can install before
+  `.env.local` exists; keep it that way.
 - **The client needs a driver adapter.** `src/lib/db.ts` builds `PrismaPg` from
   the validated env. Any new `PrismaClient` must do the same.
 
@@ -230,7 +236,9 @@ concurrency guarantees intact:
   order or transfer row), then call `lockVariants` with every variant the flow
   touches, then apply movements. Never lock a document after a variant.
 - **Status changes lock the row and call `assertTransition`** with the entity's
-  transition map. Never assign a status directly.
+  transition map. Never assign a status directly. After changing a map, run
+  `npm run gen:status-flows`; `tests/status-flows.test.ts` fails until the doc
+  matches. A new status machine goes in `FLOWS` (`scripts/lib/status-flows.ts`).
 - **Wrap stock work in `runStockTransaction(db, ...)`**, which sets the
   timeouts and retries once on deadlock or serialization failure. Write the
   audit entry inside the same transaction with `tx`.
@@ -373,6 +381,22 @@ concurrency guarantees intact:
   are searched on the server by `paletteSearch`, one group per permission.
 - `j` and `k` walk the rows of any `DataTable` with an `href`; `/` focuses the
   list's search; Ctrl or Cmd+K opens the palette from anywhere.
+
+## Tests and CI
+
+- **E2E specs prove a flow in the database**, not on the page: read the rows
+  with `e2e/support/db.ts` after each step. Find records by state with SQL, never
+  by a fixed id (the seed is dated relative to the day it runs). Specs share
+  one database and run in file order with one worker.
+- Every spec uses `test` from `e2e/support/fixtures.ts`, which fails on any
+  page error or console error. Name Playwright fixture callbacks `provide`, not
+  `use`: the React hooks lint rule reads `use(...)` as a hook call.
+- `E2E_BASE_URL` points the specs at a server on another port; without it they
+  reuse or start `npm run dev` on :3000.
+- CI (`.github/workflows/ci.yml`) runs lint, typecheck, `format:check`, unit
+  tests and the db suite. Its Postgres service sets `TZ: Asia/Manila`, as
+  docker-compose does, because the session time zone comes only from that.
+  `e2e.yml` is non-blocking (D-17).
 
 ## Known issues
 

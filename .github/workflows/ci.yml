@@ -1,0 +1,68 @@
+name: CI
+
+# SPEC section 9: lint, typecheck and unit tests on every push and pull
+# request. The stock ledger suite runs beside them against a real Postgres,
+# because the concurrency guarantees cannot be tested with mocks.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Only `prisma generate` reads these here; nothing connects to them in the
+  # check job. src/lib/env.ts validates the same shapes the app boots with.
+  DATABASE_URL: postgresql://techgear:techgear_dev@localhost:5432/techgear_erp?schema=public
+  AUTH_SECRET: ci-only-secret-that-is-at-least-32-characters-long
+  AUTH_URL: http://localhost:3000
+
+jobs:
+  check:
+    name: Lint, typecheck, unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run format:check
+      - run: npm run test:unit
+
+  db:
+    name: Stock ledger and service tests (Postgres)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: techgear
+          POSTGRES_PASSWORD: techgear_dev
+          POSTGRES_DB: techgear_erp
+          # The app's SQL relies on the session running in Manila time, as
+          # docker-compose.yml sets it.
+          TZ: Asia/Manila
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U techgear -d techgear_erp"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test:db

@@ -66,15 +66,22 @@ export function buildAftersales(ctx: SeedContext): void {
 
   for (const order of settled) {
     const mustRefund = order.status === "REFUNDED";
+    const deliveredAt = (order.deliveredAt as Date | null) ?? (order.placedAt as Date);
+    const sinceDelivery = Math.floor((ctx.now.getTime() - deliveredAt.getTime()) / 86_400_000);
     // Roughly one order in eighteen comes back, which is a believable rate for
-    // peripherals sold online.
-    if (!mustRefund && !chance(0.055)) continue;
+    // peripherals sold online. Deliveries from the last week and a half come
+    // back more often and are requested by now, so the open queue (waiting on
+    // approval, on the goods, on the refund) is never empty, whatever day the
+    // seed runs. At one in eighteen throughout, some days it was empty.
+    const recent = sinceDelivery <= 12;
+    if (!mustRefund && !chance(recent ? 0.2 : 0.055)) continue;
 
     const items = itemsByOrder.get(String(order.id)) ?? [];
     if (items.length === 0) continue;
 
-    const deliveredAt = (order.deliveredAt as Date | null) ?? (order.placedAt as Date);
-    const proposed = addDays(deliveredAt, intBetween(2, 21));
+    const proposed = recent
+      ? addDays(deliveredAt, intBetween(0, Math.max(0, sinceDelivery)))
+      : addDays(deliveredAt, intBetween(2, 21));
     // A refunded order needs the return that refunded it, even a recent one.
     if (proposed > ctx.now && !mustRefund) continue;
     const requestedAt = clampToNow(proposed, ctx.now);

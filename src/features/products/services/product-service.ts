@@ -75,7 +75,7 @@ async function assertSkusAreFree(
 
   const clash = clashes[0];
   if (clash) {
-    const conflicting = skus.includes(clash.sku) ? `SKU ${clash.sku}` : `barcode ${clash.barcode}`;
+    const conflicting = skus.includes(clash.sku) ? `SKU ${clash.sku}` : `Barcode ${clash.barcode}`;
     throw new CatalogueConflictError(`${conflicting} already belongs to ${clash.product.name}.`);
   }
 }
