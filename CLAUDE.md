@@ -397,8 +397,6 @@ concurrency guarantees intact:
   traffic, so this is the dev compiler, not a leak). For a full sweep, run
   against `npm run build && npm start`, or start dev with
   `NODE_OPTIONS=--max-old-space-size=8192` and sweep in parts.
-- `public/products/*.jpg` are the old picsum photos, superseded by the drawn
-  `.svg` illustrations (D-13). Nothing references them; they can be deleted.
 - `AUTH_URL` must match the origin the dev server is on. Auth.js rebuilds the
   request URL from it, so running on :3100 with `AUTH_URL` still at :3000
   sends the middleware's 403 rewrite to whatever else is on :3000.

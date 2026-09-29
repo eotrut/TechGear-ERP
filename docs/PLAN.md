@@ -1326,7 +1326,7 @@ techgear-erp/
 │   ├── receiving.spec.ts
 │   └── leads.spec.ts
 ├── scripts/
-│   ├── fetch-product-images.ts               # see D-13
+│   ├── draw-product-images.ts                # see D-13
 │   ├── shoot.ts                              # scripted screenshot sweep
 │   └── gen-permissions-doc.ts
 └── src/
