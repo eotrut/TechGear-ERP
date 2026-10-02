@@ -342,7 +342,12 @@ export function buildSales(ctx: SeedContext): void {
     for (let n = 0; n < count; n += 1) {
       orderCounter += 1;
       const orderId = `ord_${String(orderCounter).padStart(6, "0")}`;
-      const placedAt = atBusinessHour(day);
+      // atBusinessHour spreads an order across Manila trading hours, which on
+      // the final day reaches past the moment the seed is running. Clamp before
+      // anything derives from it: the age decides the status, and a future
+      // placedAt falls outside every report window while still counting
+      // towards the customer's lifetime value.
+      const placedAt = clampToNow(atBusinessHour(day), ctx.now);
       const ageDays = Math.round((ctx.now.getTime() - placedAt.getTime()) / 86_400_000);
 
       const channel = weightedPick(CHANNEL_WEIGHTS);

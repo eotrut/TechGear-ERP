@@ -27,6 +27,7 @@ import { buildOpeningStock, buildPurchasing } from "./purchasing";
 import { buildSales } from "./sales";
 import { buildStockCorrections } from "./stock";
 import { emptyTables, type SeedContext } from "./lib/context";
+import { assertNothingInTheFuture } from "./lib/invariants";
 import { SeedLedger } from "./lib/ledger";
 import {
   addDays,
@@ -100,6 +101,10 @@ async function main(): Promise<void> {
   applyCustomerRollups(ctx);
   applyVariantCosts(ctx);
   buildOperationalRecords(ctx);
+
+  // Seeding rule 1, checked before a single row is written: a date that
+  // records history may not land after "now".
+  assertNothingInTheFuture(ctx.tables, ctx.now);
 
   console.log("Writing to the database ...");
   await writeAll(ctx);
@@ -349,7 +354,7 @@ function buildOperationalRecords(ctx: SeedContext): void {
         "User",
         user.id,
         `${user.name} signed in.`,
-        atBusinessHour(addDays(ctx.now, -day)),
+        clampToNow(atBusinessHour(addDays(ctx.now, -day)), ctx.now),
       );
     }
   }
@@ -448,7 +453,7 @@ function buildOperationalRecords(ctx: SeedContext): void {
         email: user.email,
         ipAddress: `112.198.${intBetween(1, 254)}.${intBetween(1, 254)}`,
         success: true,
-        createdAt: atBusinessHour(addDays(ctx.now, -day)),
+        createdAt: clampToNow(atBusinessHour(addDays(ctx.now, -day)), ctx.now),
       });
     }
   }
